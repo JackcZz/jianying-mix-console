@@ -1,0 +1,2953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>视频混剪控制台</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --line:#e6e8ec; --txt:#1d2129;
+  --muted:#86909c; --brand:#165dff; --brand-d:#0e42d2;
+  --green:#00b42a; --red:#f53f3f; --amber:#ff7d00;
+  --side:#1e2329; --side-txt:#c9cdd4; --side-active:#165dff;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--txt);font-size:14px;line-height:1.6}
+a{color:var(--brand);text-decoration:none}
+
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--side);
+  color:var(--side-txt);display:flex;flex-direction:column;z-index:20;
+  box-shadow:2px 0 12px rgba(0,0,0,.15);transition:width .18s ease}
+.sidebar .brand{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.sidebar .brand .t{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px}
+.sidebar .brand .s{font-size:11px;color:#8a9099;margin-top:2px}
+.sidebar .brand .ver{font-size:11px;font-weight:600;color:#a9b4c2;background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:1px 7px;margin-left:4px;
+  vertical-align:2px;letter-spacing:0;white-space:nowrap}
+.sidebar .nav{flex:1;overflow-y:auto;padding:10px 0}
+.sidebar .nav .grp{font-size:11px;color:#6b7280;padding:14px 18px 6px}
+.store{display:block;margin:2px 10px;padding:11px 12px;border-radius:9px;cursor:pointer;
+  color:var(--side-txt);transition:background .15s}
+.store:hover{background:rgba(255,255,255,.06)}
+.store.active{background:var(--side-active);color:#fff}
+.store .lb{font-size:14px;font-weight:600}
+.store .ds{font-size:11px;color:inherit;opacity:.72;margin-top:1px;line-height:1.35}
+.sidebar .foot{padding:12px 18px;border-top:1px solid rgba(255,255,255,.08);
+  font-size:11px;color:#8a9099}
+.side-toggle{flex:0 0 auto;width:24px;height:24px;border-radius:7px;cursor:pointer;padding:0;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#c9cdd4;
+  font-size:13px;line-height:1;margin-top:2px}
+.side-toggle:hover{background:rgba(255,255,255,.18);color:#fff}
+.store .avt{display:none;width:100%;height:100%;align-items:center;justify-content:center;
+  font-size:15px;font-weight:700}
+.nav-item .ic,.add-store .ic{margin-right:5px}
+/* ── 收起态：窄图标栏 ── */
+.sidebar.collapsed{width:56px}
+.sidebar.collapsed .btxt{display:none}
+.sidebar.collapsed .brand{padding:14px 0;justify-content:center}
+.sidebar.collapsed .nav .grp{display:none}
+.sidebar.collapsed .store{margin:4px auto;width:40px;height:40px;padding:0;
+  display:flex;align-items:center;justify-content:center}
+.sidebar.collapsed .store .lb,.sidebar.collapsed .store .ds{display:none}
+.sidebar.collapsed .store .avt{display:flex}
+.sidebar.collapsed .add-store{margin:8px auto 4px;width:40px;height:36px;padding:0;
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.sidebar.collapsed .nav-item{margin:2px auto;width:40px;height:38px;padding:0;
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.sidebar.collapsed .tx{display:none}
+.sidebar.collapsed .nav-item .ic,.sidebar.collapsed .add-store .ic{margin-right:0}
+.sidebar.collapsed .foot{padding:10px 0;text-align:center}
+.sidebar.collapsed .foot #sideStatus{font-size:0}
+.sidebar.collapsed .foot .quit-opt{display:none}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--green)} .dot.off{background:var(--red)}
+
+.main{margin-left:220px;padding:24px 28px 60px;max-width:1180px;transition:margin-left .18s ease}
+.topbar{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.topbar h1{font-size:20px;margin:0;font-weight:700}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;
+  font-size:12px;background:var(--panel);border:1px solid var(--line)}
+.badge.ok{color:var(--green)} .badge.warn{color:var(--red)}
+.badge .b{font-weight:600}
+
+.grid{display:grid;gap:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px}
+.card .k{font-size:12px;color:var(--muted)}
+.card .v{font-size:20px;font-weight:700;margin-top:4px}
+.card .v small{font-size:12px;font-weight:400;color:var(--muted)}
+
+section{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px 20px;margin-bottom:16px}
+section h2{font-size:15px;margin:0 0 14px;padding-left:10px;border-left:3px solid var(--brand);
+  display:flex;align-items:center;justify-content:space-between}
+section h2 .actions{font-size:12px;font-weight:400}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:7px;
+  background:#f2f3f5;font-size:12.5px}
+.chip .n{background:#fff;border:1px solid var(--line);border-radius:999px;padding:0 7px;
+  font-size:11px;color:var(--muted)}
+.chip.c-open{background:#e8ffea;color:#0a7d33}
+.chip.c-excl{background:#fff7e8;color:#a86400}
+
+.form{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted)}
+.field input{width:110px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  font-size:14px;background:#fff;color:var(--txt)}
+.field input:focus{outline:none;border-color:var(--brand)}
+.btn{padding:9px 18px;border:none;border-radius:8px;font-size:14px;cursor:pointer;
+  font-weight:600;transition:opacity .15s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-d)}
+.btn.ghost{background:#f2f3f5;color:var(--txt)}
+.btn.ghost:hover{background:#e8e9eb}
+.btn.danger{background:#fdecec;color:var(--red)}
+.btn.sm{padding:5px 12px;font-size:12px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:12px;background:#fafbfb;white-space:nowrap}
+td.num{color:var(--muted);width:40px;font-variant-numeric:tabular-nums}
+td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#4e5969}
+.seg{display:inline-block;padding:1px 7px;border-radius:6px;background:#f2f3f5;
+  font-size:12px;margin:1px 2px 1px 0;white-space:nowrap}
+.seg.s-open{background:#e8ffea;color:#0a7d33;font-weight:600}
+.seg.s-excl{background:#fff7e8;color:#a86400;font-weight:600}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.metric{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.metric .m{font-size:12px;color:var(--muted)}
+.metric .val{font-size:22px;font-weight:700;margin-top:3px}
+.metric.pass .val{color:var(--green)} .metric.fail .val{color:var(--red)}
+.metric.info .val{color:var(--brand)}
+.metric .tag{font-size:11px;color:var(--muted);margin-top:2px}
+
+.out{background:#0f1115;color:#d7dde6;border-radius:8px;padding:12px 14px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+  white-space:pre-wrap;max-height:320px;overflow:auto;margin-top:12px}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:30px 0}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;
+  border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{padding:7px 16px;border-radius:8px;background:#f2f3f5;cursor:pointer;font-size:13px}
+.tab.active{background:var(--brand);color:#fff}
+.hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6}
+
+/* 素材池 & 规则编辑器 */
+.pool-item{display:flex;align-items:center;gap:8px;padding:7px 12px;background:#f7f8fa;
+  border:1px solid var(--line);border-radius:8px;margin:5px 0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.pool-item .p{flex:1;word-break:break-all;color:var(--txt)}
+.pool-item .x{cursor:pointer;color:var(--muted);font-size:18px;line-height:1}
+.pool-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.pool-add input{flex:1;min-width:260px;padding:8px 10px;border:1px solid var(--line);
+  border-radius:8px;font-size:13px;font-family:ui-monospace,monospace}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:10px 14px;margin-top:8px;
+  font-size:12.5px;color:var(--muted);text-align:center;cursor:default;transition:.15s}
+.drop.hot{border-color:var(--brand);background:#eef3ff;color:var(--brand)}
+.drop b{color:var(--txt)}
+.drop-hit{display:flex;align-items:center;gap:8px;padding:7px 12px;margin-top:6px;
+  background:#f7f8fa;border:1px solid var(--line);border-radius:8px;font-size:12.5px}
+.drop-hit .p{flex:1;word-break:break-all;font-family:ui-monospace,monospace;color:var(--txt)}
+.drop-hit .m{color:var(--muted);white-space:nowrap}
+
+/* ── 素材文件夹 = 项目卡 ── */
+.proj{display:flex;align-items:center;gap:10px;padding:10px 14px;margin:7px 0;
+  background:#fff;border:1px solid var(--line);border-radius:10px;font-size:13px;
+  cursor:default;transition:.12s}
+.proj:hover{border-color:var(--brand);box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.proj .ico{font-size:17px;line-height:1}
+.proj .nm{font-weight:600;color:var(--txt);max-width:46%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.proj .meta{color:var(--muted);font-size:12px;white-space:nowrap}
+.proj .meta b{color:var(--txt);font-weight:600}
+.proj .sp{flex:1}
+.proj .x{cursor:pointer;color:var(--muted);font-size:18px;line-height:1}
+.proj .x:hover{color:var(--red)}
+.proj-bad{border-color:#f3c2c2;background:#fff7f7}
+#projTip{position:fixed;z-index:99;display:none;max-width:520px;padding:12px 14px;
+  background:#fff;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 26px rgba(0,0,0,.13);font-size:12.5px}
+#projTip .pth{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted);
+  word-break:break-all;line-height:1.5}
+#projTip .ttl{margin:10px 0 6px;font-weight:600;color:var(--txt);font-size:12px}
+#projTip table{width:100%;border-collapse:collapse}
+#projTip td{padding:3px 0;font-size:12px;color:var(--txt);border:0}
+#projTip td.n{text-align:right;color:var(--muted);white-space:nowrap}
+#projTip .many{max-height:230px;overflow:auto}
+
+/* ── 类别托盘（拖进配方用） ── */
+.palette{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;background:#f7f8fa;
+  border:1px solid var(--line);border-radius:10px;margin:8px 0}
+.palette .pc{padding:5px 11px;border-radius:7px;background:#fff;border:1px solid var(--line);
+  font-size:12.5px;cursor:grab;user-select:none}
+.palette .pc:hover{border-color:var(--brand);color:var(--brand)}
+.palette .pc .n{color:var(--muted);font-size:11px;margin-left:5px}
+.rec-row.drop-hot{border-color:var(--brand);background:#eef3ff}
+.rec-row .trash{margin-left:auto;padding:5px 10px;border:1px dashed var(--line);
+  border-radius:7px;font-size:11.5px;color:var(--muted)}
+.rec-row .trash.hot{border-color:var(--red);color:var(--red);background:#fff2f2}
+.addseg{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+  border:1.5px dashed var(--line);border-radius:8px;color:var(--muted);cursor:pointer;
+  font-size:16px;line-height:1;user-select:none;transition:.12s}
+.addseg:hover{border-color:var(--brand);color:var(--brand);background:#eef3ff}
+#catPick{position:fixed;z-index:99;display:none;max-width:520px;padding:10px 12px;
+  background:#fff;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 26px rgba(0,0,0,.13)}
+#catPick .ttl{font-size:12px;color:var(--muted);margin-bottom:8px}
+#catPick .pc{display:inline-flex;align-items:center;gap:5px;margin:0 6px 6px 0;padding:5px 10px;
+  border:1px solid var(--line);border-radius:7px;font-size:12.5px;cursor:pointer;background:#fff}
+#catPick .pc:hover{border-color:var(--brand);color:var(--brand);background:#eef3ff}
+#catPick .pc .n{color:var(--muted);font-size:11px}
+#catPick .pick-list{max-height:280px;overflow:auto;max-width:520px}
+#catPick .pc.on{border-color:var(--brand);background:#eef3ff;color:var(--brand);font-weight:600}
+.palette .pc.sp{background:#f3f6ff;border-color:#c9d8f5}
+.mode-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;
+  background:#f7f8fa;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;font-size:12.5px}
+.mode-bar .hint{margin:0}
+
+/* ── 自动排序 + 上限估算 ── */
+.auto-sort{border:1px solid var(--line);border-radius:12px;background:#fbfcfe;
+  padding:14px 16px;margin-bottom:12px}
+.auto-sort .as-head{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--txt)}
+.auto-sort .as-head .tag{font-size:11px;font-weight:600;color:var(--brand);background:#eef3ff;
+  border:1px solid #bcd1ff;border-radius:999px;padding:1px 8px}
+.auto-sort .as-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
+.auto-sort .field{display:flex;flex-direction:column;gap:4px}
+.auto-sort .field label{font-size:12px;color:var(--muted)}
+.auto-sort select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  font-size:13px;background:#fff;color:var(--txt);min-width:170px}
+.auto-sort select:focus{outline:none;border-color:var(--brand)}
+.est-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
+.est-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.est-item .k{font-size:12px;color:var(--muted)}
+.est-item .v{font-size:20px;font-weight:700;margin-top:2px}
+.est-item .v small{font-size:11px;font-weight:400;color:var(--muted)}
+.est-item.acc .v{color:var(--brand)}
+.progress-wrap{margin-top:14px}
+.progress-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.progress-head b{color:var(--txt);font-weight:700}
+.progress{height:10px;background:#eef0f2;border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;background:var(--brand);border-radius:999px;transition:width .3s}
+
+/* ── AI 部署 ── */
+.ai-box{padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}
+.ai-box textarea{width:100%;box-sizing:border-box;min-height:56px;padding:9px 11px;
+  border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical}
+.ai-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.ai-row input[type=password]{flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--line);
+  border-radius:8px;font-size:12.5px;font-family:ui-monospace,monospace}
+.bak-list{margin-top:8px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.bak-row{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12.5px;
+  border-bottom:1px solid var(--line);background:#fff}
+.bak-row:last-child{border-bottom:0}
+.bak-row .t{font-family:ui-monospace,monospace;color:var(--txt)}
+.bak-row .w{flex:1;color:var(--muted)}
+
+.rec-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:12px;
+  background:#fafbfc;border:1px dashed var(--line);border-radius:10px;margin:8px 0}
+.rec-pos{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;
+  background:#fff;border:1px solid var(--line);cursor:grab;font-size:13px;user-select:none}
+.rec-pos.drag-over{border-color:var(--brand);background:#eef3ff}
+.rec-pos .x{color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.rec-pos.pos-open{background:#e8ffea;border-color:#b6e6c0;color:#0a7d33}
+.rec-pos.pos-excl{background:#fff7e8;border-color:#f0d9b0;color:#a86400}
+.rec-head{display:flex;align-items:center;gap:8px;margin-top:10px}
+.rec-head .lbl{font-size:12px;color:var(--muted);font-weight:600}
+.radio{display:inline-flex;align-items:center;gap:5px;margin-right:14px;cursor:pointer;font-size:13px}
+.radio input{margin:0}
+.scan{margin-top:10px;padding:12px;background:#f7f8fa;border-radius:8px}
+.scan .cat{display:inline-flex;align-items:center;gap:6px;margin:2px 4px 2px 0;padding:3px 10px;
+  border-radius:7px;background:#fff;border:1px solid var(--line);font-size:12.5px}
+.scan .cat .n{color:var(--muted);font-size:11px}
+.files{margin-top:6px;max-height:180px;overflow:auto;font-family:ui-monospace,monospace;
+  font-size:11.5px;color:#4e5969;line-height:1.7;white-space:pre-wrap}
+
+/* 状态横幅 + 轻提示（替代 confirm/alert，避免被内嵌页拦截） */
+.status-banner{display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:10px;
+  font-size:13.5px;font-weight:600;margin-top:12px}
+.status-banner.running{background:#eef3ff;color:var(--brand);border:1px solid #bcd1ff}
+.status-banner.done{background:#e8ffea;color:#0a7d33;border:1px solid #b6e6c0}
+.status-banner.fail{background:#fdecec;color:var(--red);border:1px solid #f5c2c2}
+.toast{position:fixed;top:18px;right:18px;z-index:99;padding:12px 18px;border-radius:10px;
+  color:#fff;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.18);
+  max-width:360px;transition:opacity .3s}
+.toast.ok{background:#00b42a}.toast.err{background:#f53f3f}.toast.info{background:#165dff}
+
+/* 添加店铺 */
+.add-store{margin:8px 10px 4px;padding:9px 12px;border:1px dashed rgba(255,255,255,.22);
+  border-radius:9px;text-align:center;font-size:13px;color:#8a9099;cursor:pointer}
+.add-store:hover{background:rgba(255,255,255,.07);color:#fff;border-color:rgba(255,255,255,.45)}
+.store .tag-c{display:inline-block;font-size:10px;padding:0 5px;border-radius:4px;
+  background:rgba(255,255,255,.16);margin-left:6px;vertical-align:1px}
+
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;
+  display:none;align-items:center;justify-content:center}
+.modal-mask.show{display:flex}
+.modal{background:#fff;border-radius:14px;padding:22px 24px;width:520px;max-width:92vw;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:88vh;overflow:auto}
+.modal h3{margin:0 0 6px;font-size:17px}
+.modal .sub{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6}
+.mrow{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.mrow label{font-size:12px;color:var(--muted)}
+.mrow input,.mrow select{padding:9px 11px;border:1px solid var(--line);border-radius:8px;
+  font-size:13.5px;background:#fff;color:var(--txt);font-family:inherit}
+.mrow input:focus,.mrow select:focus{outline:none;border-color:var(--brand)}
+.mrow .tip{font-size:11px;color:var(--muted)}
+.mfoot{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+
+/* ── 花字库编辑页 ── */
+.hz-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.hz-bar input[type=search]{flex:1 1 220px;min-width:170px;padding:8px 11px;border:1px solid var(--line);
+  border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:var(--txt)}
+.hz-bar input[type=search]:focus{outline:none;border-color:var(--brand)}
+.hz-bar select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;
+  background:#fff;font-family:inherit;color:var(--txt)}
+.hz-chk{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);
+  padding:7px 11px;border:1px solid var(--line);border-radius:8px;cursor:pointer;
+  user-select:none;white-space:nowrap;background:#fff}
+.hz-chk.on{color:var(--brand);border-color:var(--brand);background:#eef3ff}
+.hz-chk input{margin:0;accent-color:var(--brand)}
+.hz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.hz-card{position:relative;background:#fff;border:1px solid var(--line);border-radius:10px;
+  overflow:hidden;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.hz-card:hover{border-color:var(--brand)}
+.hz-card.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(0,180,42,.16) inset}
+.hz-tb{aspect-ratio:1/1;background:#f5f6f8;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hz-tb img{width:100%;height:100%;object-fit:contain;display:block}
+.hz-tb .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  font-size:26px;font-weight:700;opacity:.85}
+.hz-md{padding:7px 8px 8px}
+.hz-md .t{font-size:12px;line-height:1.35;height:2.7em;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hz-md .i{font-size:10px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;margin-top:3px}
+.hz-tags{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
+.hz-tag{font-size:9.5px;padding:0 5px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+.hz-tag.vip{color:#a8730a;border-color:#e8ce7a;background:#fdf6e3}
+.hz-tag.cat{color:var(--brand);border-color:#bcd1ff;background:#f0f5ff}
+.hz-tag.img{color:#0a7d33;border-color:#b6e6c0;background:#e8ffea}
+.hz-sw{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;
+  background:rgba(255,255,255,.92);border:1px solid var(--line);color:#c9cdd4}
+.hz-card.on .hz-sw{background:var(--green);border-color:var(--green);color:#fff}
+.hz-more{display:block;margin:16px auto 0;padding:9px 22px;border-radius:9px;background:#fff;
+  border:1px solid var(--line);cursor:pointer;font-family:inherit;font-size:13px;color:var(--txt)}
+.hz-more:hover{border-color:var(--brand);color:var(--brand)}
+.hz-save{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:80;
+  display:none;align-items:center;gap:14px;background:#1d2129;color:#fff;
+  padding:11px 18px;border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.3);font-size:13px}
+.hz-save.show{display:flex}
+.hz-save .d{color:#ffd666;font-weight:600}
+.hz-save .btn{padding:6px 14px;font-size:13px}
+.hz-section{margin-top:24px}
+.hz-section h2{font-size:15px;margin:0 0 10px}
+.hz-section .hint{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
+.font-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;
+  border:1px solid var(--line);background:#fff;font-size:13px;cursor:pointer;
+  user-select:none;margin:0 8px 8px 0}
+.font-pill:hover{border-color:var(--brand)}
+.font-pill.on{border-color:var(--green);background:#e8ffea;color:#0a7d33}
+
+/* ── 文案库 v2（库编辑 + 本店选用 + 使用次数） ── */
+.cp-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.cp-tab{padding:9px 15px;font-size:13.5px;cursor:pointer;border-radius:9px 9px 0 0;color:var(--muted);
+  border:1px solid transparent;border-bottom:none;user-select:none}
+.cp-tab:hover{color:var(--txt);background:#f4f6f8}
+.cp-tab.on{color:var(--brand);background:var(--panel);border-color:var(--line);font-weight:600}
+.cp-head{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:11px}
+.cp-path{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:#f7f8fa;
+  border:1px solid var(--line);border-radius:8px;padding:7px 11px;color:#4e5969;
+  word-break:break-all;flex:1 1 260px}
+.cp-badge{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);
+  color:var(--muted);white-space:nowrap}
+.cp-badge.def{color:var(--brand);border-color:#bcd1ff;background:#f0f5ff}
+.cp-badge.own{color:#0a7d33;border-color:#b6e6c0;background:#e8ffea}
+.cp-badge.bad{color:#d4380d;border-color:#ffbb96;background:#fff2e8}
+.cp-note{font-size:12.5px;color:#d4380d;background:#fff2e8;border:1px solid #ffbb96;
+  border-radius:8px;padding:9px 13px;margin-bottom:12px;line-height:1.6}
+.cp-note.info{color:#0e42d2;background:#f0f5ff;border-color:#bcd1ff}
+.cp-stat{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:12px}
+.cp-stat b{color:var(--txt);font-variant-numeric:tabular-nums}
+.cp-stat .lnk{color:var(--brand);cursor:pointer;text-decoration:underline}
+.cp-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.cp-bar input[type=search],.cp-bar input[type=text]{padding:8px 11px;border:1px solid var(--line);
+  border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:var(--txt)}
+.cp-bar input[type=search]{flex:1 1 190px;min-width:140px}
+.cp-bar input:focus{outline:none;border-color:var(--brand)}
+.cp-bar .grow{flex:1}
+.cp-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.cp-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;
+  border:1px solid var(--line);background:#fff;font-size:12.5px;cursor:pointer;user-select:none;
+  transition:all .12s}
+.cp-chip:hover{border-color:var(--brand)}
+.cp-chip.on{border-color:var(--brand);background:#f0f5ff;color:var(--brand)}
+.cp-chip.ex{border-color:#ffbb96;background:#fff2e8;color:#d4380d}
+.cp-chip .n{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cp-rows{max-height:560px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.cp-th,.cp-tr{display:grid;grid-template-columns:120px 1fr 58px 58px 32px;gap:8px;align-items:center}
+.cp-th{padding:8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:#fafbfb;z-index:2}
+.cp-th .r{text-align:right}
+.cp-tr{padding:4px 8px;border-bottom:1px solid #f2f3f5}
+.cp-tr:last-child{border-bottom:none}
+.cp-tr:hover{background:#fafbfc}
+.cp-tr .cp-n,.cp-tr .cp-n2{font-size:12px;color:#c9cdd4;text-align:right;
+  font-variant-numeric:tabular-nums}
+.cp-tr .cp-n.hot{color:var(--brand);font-weight:600}
+.cp-tr .cp-n2.hot{color:#0a7d33;font-weight:600}
+.cp-sel{width:100%;padding:6px 7px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;
+  font-family:inherit;background:#fff;color:var(--txt)}
+.cp-in{width:100%;padding:6px 9px;border:1px solid transparent;border-radius:7px;font-size:13px;
+  font-family:inherit;background:transparent;color:var(--txt)}
+.cp-in:hover{border-color:var(--line);background:#fff}
+.cp-in:focus{outline:none;border-color:var(--brand);background:#fff}
+.cp-x{border:none;background:transparent;color:#c9cdd4;cursor:pointer;font-size:14px;line-height:1;
+  padding:5px;border-radius:6px}
+.cp-x:hover{color:var(--red);background:#fff1f0}
+.cp-more{display:block;margin:12px auto 0;padding:9px 22px;border-radius:9px;background:#fff;
+  border:1px solid var(--line);cursor:pointer;font-family:inherit;font-size:13px;color:var(--txt)}
+.cp-more:hover{border-color:var(--brand);color:var(--brand)}
+.cp-mode{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.cp-radio{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;
+  padding:7px 13px;border-radius:9px;border:1px solid var(--line);background:#fff;user-select:none}
+.cp-radio.on{border-color:var(--brand);background:#f0f5ff;color:var(--brand);font-weight:600}
+.cp-eff{font-size:13px;color:var(--muted);margin-left:auto}
+.cp-eff b{color:var(--brand);font-size:17px;font-variant-numeric:tabular-nums}
+.cp-block{margin-bottom:18px}
+.cp-block.off{opacity:.35;pointer-events:none}
+.cp-lab{font-size:13px;font-weight:600;margin-bottom:9px;display:flex;align-items:center;
+  gap:8px;flex-wrap:wrap}
+.cp-lab .hint{font-weight:400;font-size:12px;color:var(--muted)}
+.cp-pick{max-height:430px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.cp-pr{display:grid;grid-template-columns:30px 112px 1fr 54px;gap:8px;align-items:center;
+  padding:5px 11px;border-bottom:1px solid #f2f3f5;font-size:13px;cursor:pointer}
+.cp-pr:last-child{border-bottom:none}
+.cp-pr:hover{background:#fafbfc}
+.cp-pr.on{background:#f0f5ff}
+.cp-pr .n{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.cp-pr .tg{font-size:11px;color:var(--muted);background:#f2f3f5;border-radius:5px;
+  padding:1px 7px;justify-self:start}
+.cp-saveas{display:inline-flex;gap:6px;align-items:center}
+.cp-saveas input{width:165px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;
+  font-size:13px;font-family:inherit}
+.cp-saveas input:focus{outline:none;border-color:var(--brand)}
+.modal textarea{width:100%;min-height:150px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:9px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  line-height:1.85;resize:vertical;color:var(--txt)}
+.modal textarea:focus{outline:none;border-color:var(--brand)}
+.modal input[type=file]{font-size:12.5px;font-family:inherit}
+
+.nav-item{margin:2px 10px;padding:9px 12px;border-radius:9px;font-size:13.5px;color:var(--side-txt);
+  cursor:pointer;transition:background .15s}
+.nav-item:hover{background:rgba(255,255,255,.06)}
+.nav-item.active{background:var(--side-active);color:#fff}
+
+/* ── BGM v1.4：默认曲库 + 单曲选用 ── */
+.sub-h{font-weight:600;font-size:13px;color:var(--txt);margin:14px 0 6px}
+.bgm-def{border:1px solid var(--line);border-radius:10px;background:#fafbfc;padding:12px 14px}
+.bgm-def .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.bgm-def .tag{font-size:11px;font-weight:600;color:var(--brand);background:#eef3ff;
+  border:1px solid #bcd1ff;border-radius:8px;padding:1px 7px}
+.bgm-def .paths{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.9;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+.bgm-def .paths .ok{color:var(--green)}
+.bgm-def .paths .bad{color:var(--red)}
+.bp-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.bp-list{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.bp-row{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid #f0f1f3;
+  font-size:12.5px;cursor:pointer}
+.bp-row:last-child{border-bottom:0}
+.bp-row:hover{background:#f7f9fc}
+.bp-row.on{background:#f2f7ff}
+.bp-row input{margin:0;accent-color:var(--brand);flex:none}
+.bp-row .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.bp-row .dir{font-size:11px;color:var(--muted);flex:none;max-width:150px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.bp-row .cnt{font-size:11px;color:var(--muted);flex:none;min-width:132px;text-align:right;
+  white-space:nowrap}
+.bp-row .cnt.zero{opacity:.5}
+.bp-row .cnt b{color:var(--txt);font-weight:600}
+.bp-row .cnt .g{opacity:.72}
+
+/* ── BGM 库独立页 ── */
+.bgm-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;
+  border:1px solid var(--line);border-radius:10px;background:#fafbfc;margin-bottom:14px}
+.bgm-bar label{font-size:12px;color:var(--muted);white-space:nowrap}
+.bgm-bar select,.bgm-bar input[type=text]{padding:6px 9px;border:1px solid var(--line);
+  border-radius:8px;font-size:13px;background:#fff;color:var(--txt)}
+.bgm-bar select{max-width:220px}
+.bgm-scope{display:flex;align-items:center;gap:14px;font-size:13px;flex-wrap:wrap;
+  margin:10px 0 4px}
+.bgm-scope label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.bgm-scope input{accent-color:var(--brand)}
+.bgm-scope .hint{margin:0}
+.bgm-groups{display:flex;gap:8px;flex-wrap:wrap;width:100%;margin-top:2px}
+.bgm-groups .gchk{padding:5px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12.5px}
+.bgm-groups .gchk.on{border-color:var(--brand);background:#f2f6ff}
+.bgm-groups .gchk .n{color:var(--muted);font-size:11px}
+.bp-row .play{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);
+  background:#fff;color:var(--brand);cursor:pointer;font-size:11px;line-height:1;padding:0}
+.bp-row .play:hover{background:#eef3ff;border-color:var(--brand)}
+.bp-row .play.playing{background:var(--brand);color:#fff;border-color:var(--brand)}
+.bgm-summary{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bgm-summary .n{font-size:20px;font-weight:700;color:var(--brand)}
+.bgm-audio{margin-top:8px;width:100%;height:34px}
+
+/* ── 通用「展开 / 收缩」组件（BGM 区等）：高度 + 透明度双过渡 ── */
+.coll{overflow:hidden;opacity:1;
+  transition:max-height .36s cubic-bezier(.22,.61,.36,1),
+             opacity .3s ease}
+.coll.is-collapsed{opacity:0}
+.coll-hd{display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:5px 0;user-select:none;-webkit-user-select:none}
+.coll-hd .caret{flex:none;font-size:10px;line-height:1;color:var(--muted);
+  transform:rotate(0deg);transition:transform .36s cubic-bezier(.22,.61,.36,1)}
+.coll-hd.is-collapsed .caret{transform:rotate(-90deg)}
+.coll-hd .coll-t{font-weight:600;font-size:13px;color:var(--txt);transition:color .18s}
+.coll-hd:hover .coll-t{color:var(--brand)}
+.coll-hd .coll-n{font-size:11.5px;color:var(--muted)}
+.coll-hd .coll-n b{color:var(--brand)}
+.coll-hd .coll-act{margin-left:auto;font-size:11.5px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){
+  .coll,.coll-hd .caret{transition:none}
+}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="btxt">
+      <div class="t">视频混剪控制台 <span class="ver" id="appVer">v—</span></div>
+      <div class="s">剪映批量成片 · 多店面</div>
+    </div>
+    <button class="side-toggle" id="sideToggle" onclick="toggleSidebar()" title="收起 / 展开">«</button>
+  </div>
+  <nav class="nav">
+    <div class="grp">店面</div>
+    <div id="storeList"></div>
+    <div class="add-store" onclick="openAddStore()"><span class="ic">＋</span><span class="tx">添加店铺</span></div>
+    <div class="grp">工具</div>
+    <div class="nav-item" id="navBgm" onclick="showBgm()"><span class="ic">🎵</span><span class="tx">BGM 库</span></div>
+    <div class="nav-item" id="navCopy" onclick="showCopy()"><span class="ic">📝</span><span class="tx">文案库</span></div>
+    <div class="nav-item" id="navHuazi" onclick="showHuazi()"><span class="ic">🎨</span><span class="tx">花字库</span></div>
+  </nav>
+  <div class="foot">
+    <span id="sideStatus"><span class="dot off"></span>加载中…</span>
+    <label class="quit-opt" title="默认关闭：关掉页面后程序继续在后台跑，下次双击图标即可直接打开">
+      <input type="checkbox" id="cbQuit" onchange="setQuitOnClose(this.checked)"> 关页面时同时退出程序</label>
+  </div>
+</aside>
+
+<!-- 添加店铺弹窗 -->
+<div class="modal-mask" id="addMask" onclick="if(event.target===this)closeAddStore()">
+  <div class="modal">
+    <h3>添加店铺</h3>
+    <div class="sub">新店铺会复制所选模板的剪辑规则（镜头配方 / 排他类别 / 卡点设置），
+      并以独立的去重历史、独立的素材池开张。默认模板是「跃杨鱼杂」。</div>
+    <div class="mrow">
+      <label>店铺名称 *</label>
+      <input id="nsName" placeholder="如：张江鱼杂">
+    </div>
+    <div class="mrow">
+      <label>标识（英文/数字，留空自动生成）</label>
+      <input id="nsKey" placeholder="留空 = custom1、custom2…">
+      <div class="tip">只影响文件夹名与配置文件，界面上不显示。</div>
+    </div>
+    <div class="mrow">
+      <label>规则模板</label>
+      <select id="nsTpl"></select>
+    </div>
+    <div class="mrow">
+      <label>素材文件夹（可留空，创建后再配）</label>
+      <input id="nsPool" placeholder="~/Desktop/02 鱼杂内容/…">
+    </div>
+    <div class="mrow">
+      <label>BGM 文件夹（留空 = 沿用模板曲库）</label>
+      <input id="nsBgm" placeholder="~/Desktop/… 可留空">
+    </div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="closeAddStore()">取消</button>
+      <button class="btn primary" onclick="submitAddStore()">创建店铺</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 文案库：导入弹窗 -->
+<div class="modal-mask" id="cpImpMask" onclick="if(event.target===this)closeCpImport()">
+  <div class="modal">
+    <h3>导入文案</h3>
+    <div class="sub">一行一条，格式 <b>[类型] 第一段|第二段</b>（类型可省）。<code>#</code> 开头是注释，空行忽略。</div>
+    <div class="mrow">
+      <label>导入方式</label>
+      <select id="cpImpMode">
+        <option value="merge">合并（同一条文案以导入的类型为准）</option>
+        <option value="append">追加（只补库里没有的，不动已有的）</option>
+        <option value="replace">替换（清空整库，只用导入的）</option>
+      </select>
+    </div>
+    <div class="mrow">
+      <label>选一个 txt 文件</label>
+      <input type="file" id="cpImpFile" accept=".txt,text/plain">
+    </div>
+    <div class="mrow">
+      <label>或直接粘贴</label>
+      <textarea id="cpImpText" placeholder="[远道而来] 骑行20公里|吃一口肥肠鱼杂&#10;排队一小时也要吃|真有这么好吃吗"></textarea>
+    </div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="closeCpImport()">取消</button>
+      <button class="btn primary" onclick="cpDoImport()">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 花字库：浮动保存条（有未保存改动时才显示） -->
+<div class="hz-save" id="hzSave">
+  <span>花字/字体已改动 <span class="d" id="hzDiff">0</span> 项，尚未保存</span>
+  <button class="btn ghost sm" onclick="hzRevert()">撤销</button>
+  <button class="btn primary sm" id="hzSaveBtn" onclick="hzSave()">💾 保存</button>
+</div>
+
+<!-- BGM 库：浮动保存条 -->
+<div class="hz-save" id="bgmSave">
+  <span>BGM 规则已改动 <span class="d" id="bgmDiff">0</span> 项，尚未保存</span>
+  <button class="btn ghost sm" onclick="bgmRevert()">撤销</button>
+  <button class="btn primary sm" id="bgmSaveBtn" onclick="bgmSaveAll()">💾 保存</button>
+</div>
+
+<!-- 文案库：浮动保存条（有未保存改动时才显示） -->
+<div class="hz-save" id="cpSave">
+  <span id="cpDiffText">文案已改动 <span class="d" id="cpDiff">0</span> 条，尚未保存</span>
+  <button class="btn ghost sm" onclick="cpRevert()">撤销</button>
+  <button class="btn primary sm" id="cpSaveBtn" onclick="cpSave()">💾 保存</button>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1 id="pageTitle">选择店面</h1>
+    <span class="badge" id="capcutBadge"><span class="dot off"></span>剪映状态…</span>
+    <span class="badge" id="indexBadge">索引 …</span>
+    <span class="badge" id="verBadge" title="控制台版本">v—</span>
+    <button class="btn danger sm" id="btnDelStore" style="display:none"
+      onclick="deleteStore()" title="删除这个自定义店铺（不动已产出的历史）">🗑 删除店铺</button>
+    <button class="btn danger sm" id="btnQuitApp" style="margin-left:auto" onclick="shutdownApp()" title="关闭控制台程序（后端进程）">⏻ 关闭程序</button>
+  </div>
+  <div id="content"><div class="empty">正在加载店面列表…</div></div>
+</div>
+
+<script>
+let STATE={key:null, lastKey:null, detail:null, taskId:null, bgm:null};
+let ED={pool:[], mode:'recipe', recipes:null, slotgroups:null, exclusive:[], slots:null, ruleMode:'recipe', auto:{opening:'',ending:''}};
+let drag={r:null, i:null};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const catOf=n=>n.replace(/\.\w+$/,'').replace(/[-_]\d+$/,'');
+const basename=p=>String(p||'').replace(/\/+$/,'').split('/').pop();   // 先去掉尾部斜杠，否则取到空串
+
+async function jget(u){const r=await fetch(u);if(!r.ok)throw new Error((await r.json()).detail||r.status);return r.json();}
+async function jpost(u,b){const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||r.status);return d;}
+async function jdel(u){const r=await fetch(u,{method:'DELETE'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||r.status);return d;}
+
+/* ---------- 通用「展开 / 收缩」组件 ----------
+   用法：
+     <div class="coll-hd" id="xHd" onclick="collToggleDom('xWrap','xHd')">
+       <span class="caret">▼</span><span class="coll-t">标题</span>
+       <span class="coll-n">…</span></div>
+     <div class="coll" id="xWrap"> …内容… </div>
+     collInit('xWrap','xHd', true);        // 首屏按记忆/默认值就位，不动画
+   要点：动画期间用实测 scrollHeight 做 max-height，结束再放开成 none，
+        这样内容随后变高也不会被卡住。 */
+const COLL_MS = 380;
+
+function collSet(panel, head, open, animate){
+  if(!panel) return;
+  clearTimeout(panel._collT);
+  if(open){
+    panel.classList.remove('is-collapsed');
+    if(head) head.classList.remove('is-collapsed');
+    if(animate === false){ panel.style.maxHeight = 'none'; return; }
+    panel.style.maxHeight = '0px';
+    void panel.offsetHeight;                      // 强制回流，保证从 0 起动画
+    panel.style.maxHeight = panel.scrollHeight + 'px';
+    panel._collT = setTimeout(()=>{
+      if(!panel.classList.contains('is-collapsed')) panel.style.maxHeight = 'none';
+    }, COLL_MS);
+  }else{
+    if(animate === false){                        // 首屏直接就位：不强制回流，避免误播动画
+      panel.classList.add('is-collapsed');
+      if(head) head.classList.add('is-collapsed');
+      panel.style.maxHeight = '0px';
+      return;
+    }
+    panel.style.maxHeight = panel.scrollHeight + 'px';   // 先固定成像素才能过渡
+    void panel.offsetHeight;
+    panel.classList.add('is-collapsed');
+    if(head) head.classList.add('is-collapsed');
+    panel.style.maxHeight = '0px';
+  }
+}
+
+function collRemember(id, open){
+  try{ localStorage.setItem('coll:'+id, open?'1':'0'); }catch(e){}
+}
+function collRemembered(id, defOpen){
+  try{
+    const v = localStorage.getItem('coll:'+id);
+    return v === null ? !!defOpen : v === '1';
+  }catch(e){ return !!defOpen; }
+}
+function collInit(panelId, headId, defOpen){
+  const p = document.getElementById(panelId);
+  if(!p) return;
+  collSet(p, document.getElementById(headId), collRemembered(panelId, defOpen), false);
+}
+/* onclick 用：切换并记住状态，返回「切换后是否展开」 */
+function collToggleDom(panelId, headId){
+  const p = document.getElementById(panelId);
+  if(!p) return false;
+  const open = p.classList.contains('is-collapsed');   // 收起态 → 本次要展开
+  collSet(p, document.getElementById(headId), open, true);
+  collRemember(panelId, open);
+  return open;
+}
+/* 内容在展开态下变高时调用：放开 max-height，避免被旧值截断 */
+function collRemeasure(panelId){
+  const p = document.getElementById(panelId);
+  if(p && !p.classList.contains('is-collapsed')) p.style.maxHeight = 'none';
+}
+
+/* 版本号唯一来源是项目根的 version.py（后端经 /api/status 下发），
+   前端只负责回填 —— 别在这里写死版本号。 */
+function setAppVersion(v){
+  const t='v'+v;
+  document.title='视频混剪控制台 '+t;
+  ['#appVer','#verBadge'].forEach(sel=>{ const el=$(sel); if(el) el.textContent=t; });
+}
+
+async function loadStatus(){
+  try{
+    const s=await jget('/api/status');
+    STATE.version=s.version;
+    if(s.version) setAppVersion(s.version);
+    const on=s.capcut_running;
+    $('#capcutBadge').innerHTML=`<span class="dot ${on?'on':'off'}"></span>剪映${on?'运行中（生成需先退出）':'已关闭'}`;
+    $('#capcutBadge').className='badge '+(on?'warn':'ok');
+    const i=s.index, clean=i.count===i.unique;
+    $('#indexBadge').innerHTML=`<span class="b">索引</span> ${i.count} 条 / ${i.unique} 唯一 ${clean?'✓':'⚠'}`;
+    $('#indexBadge').className='badge '+(clean?'ok':'warn');
+    $('#sideStatus').innerHTML=`<span class="dot ${on?'on':'off'}"></span>剪映${on?'运行中':'已关闭'}`;
+  }catch(e){ $('#sideStatus').textContent='状态获取失败'; }
+}
+
+async function loadStores(autoSelect=true){
+  const d=await jget('/api/stores');
+  STATE.stores=d;
+  const el=$('#storeList'); el.innerHTML='';
+  d.stores.forEach(s=>{
+    const div=document.createElement('div');
+    div.className='store'; div.dataset.k=s.key;
+    div.title=(s.label||'')+(s.desc?(' · '+s.desc):'');
+    const tag=s.builtin?'':'<span class="tag-c">自定义</span>';
+    div.innerHTML=`<span class="avt">${esc((s.label||'')[0]||'·')}</span>`
+      +`<div class="lb">${esc(s.label)}${tag}</div><div class="ds">${esc(s.desc)}</div>`;
+    div.onclick=()=>selectStore(s.key);
+    el.appendChild(div);
+  });
+  // 保持当前选中的店面；没有就选第一个
+  const keep=(STATE.key && d.stores.some(s=>s.key===STATE.key))
+    ? STATE.key : (d.stores[0]||{}).key;
+  if(autoSelect && keep) selectStore(keep);
+}
+
+function selectStore(key){
+  STATE.key=key; STATE.lastKey=key;
+  // 店面页也进 hash（#store=<key>）→ 可刷新 / 可分享 / 可从工具页点回来
+  try{ history.replaceState(null,'','#store='+encodeURIComponent(key)); }catch(e){}
+  document.querySelectorAll('.store').forEach(n=>n.classList.toggle('active',n.dataset.k===key));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const sb=$('#hzSave'); if(sb) sb.classList.remove('show');
+  const csb=$('#cpSave'); if(csb) csb.classList.remove('show');
+  const bsb=$('#bgmSave'); if(bsb) bsb.classList.remove('show');
+  bgmStopPlay();
+  loadDetail(key);
+}
+
+/* ---------- 添加 / 删除店铺 ---------- */
+function openAddStore(){
+  const tpls=(STATE.stores&&STATE.stores.templates)||[];
+  const sel=$('#nsTpl');
+  sel.innerHTML=tpls.map(t=>`<option value="${esc(t.key)}">${esc(t.label)}（${esc(t.desc)}）</option>`).join('');
+  const def=tpls.find(t=>t.key==='yuza0911yy');
+  if(def) sel.value=def.key;
+  ['#nsName','#nsKey','#nsPool','#nsBgm'].forEach(s=>{ const e=$(s); if(e) e.value=''; });
+  $('#addMask').classList.add('show');
+  setTimeout(()=>{ const e=$('#nsName'); if(e) e.focus(); },60);
+}
+function closeAddStore(){ $('#addMask').classList.remove('show'); }
+
+async function submitAddStore(){
+  const name=$('#nsName').value.trim();
+  if(!name){ toast('先填店铺名称','info'); $('#nsName').focus(); return; }
+  const body={
+    name:name,
+    key:$('#nsKey').value.trim()||null,
+    template:$('#nsTpl').value,
+    pool_dirs:$('#nsPool').value.trim()?[$('#nsPool').value.trim()]:[],
+    bgm_dirs:$('#nsBgm').value.trim()?[$('#nsBgm').value.trim()]:[],
+  };
+  try{
+    const r=await jpost('/api/stores',body);
+    closeAddStore();
+    toast('已创建店铺：'+r.label+(body.pool_dirs.length?'':'（记得先配素材文件夹）'),'ok');
+    STATE.key=r.key;
+    await loadStores();
+  }catch(e){ toast('创建失败：'+e.message,'err'); }
+}
+
+/* 删除要连点两次确认（原生 confirm 在预览页里会被拦） */
+function deleteStore(){
+  const btn=$('#btnDelStore');
+  if(!btn) return;
+  if(btn.dataset.armed!=='1'){
+    btn.dataset.armed='1';
+    btn.textContent='再点一次确认删除';
+    toast('再点一次「确认删除」','info');
+    setTimeout(()=>{ if(btn.dataset.armed==='1'){ btn.dataset.armed='0'; btn.textContent='🗑 删除店铺'; } },5000);
+    return;
+  }
+  btn.dataset.armed='0'; btn.textContent='🗑 删除店铺';
+  doDeleteStore();
+}
+async function doDeleteStore(){
+  const label=(STATE.detail&&STATE.detail.label)||STATE.key;
+  try{
+    await jdel('/api/stores/'+STATE.key);
+    toast('已删除店铺：'+label,'ok');
+    STATE.key=null; STATE.detail=null;
+    await loadStores();
+  }catch(e){ toast('删除失败：'+e.message,'err'); }
+}
+
+async function loadDetail(key){
+  const d=await jget('/api/stores/'+key);
+  STATE.detail=d;
+  $('#pageTitle').textContent=d.label+' · 混剪';
+  const del=$('#btnDelStore');
+  if(del){
+    del.style.display=d.builtin?'none':'';
+    del.dataset.armed='0';
+    del.textContent='🗑 删除店铺';
+  }
+  initEditorState(d);
+  renderDetail(d);
+}
+
+function initEditorState(d){
+  const sp=d.spec;
+  ED.pool=[...(sp.pool_dirs||[])];
+  ED.exclusive=[...(sp.exclusive_adjacent||[])];
+  // 出片模式：recipe=按配方 / random=只按段数随机（配方保留，随时切回来）
+  ED.ruleMode=sp.rule_mode||'recipe';
+  ED.auto={opening:sp.auto_opening||'', ending:sp.auto_ending||''};
+  // slots：null = 自动（按配方长度算）；数字 = 手动指定段数
+  ED.slots=(sp.slots_auto===false)?sp.slots:null;
+  if(sp.shot_recipes){ ED.mode='recipe'; ED.recipes=JSON.parse(JSON.stringify(sp.shot_recipes)); ED.slotgroups=null; }
+  else if(sp.shot_recipe){ ED.mode='recipe'; ED.recipes=[JSON.parse(JSON.stringify(sp.shot_recipe))]; ED.slotgroups=null; }
+  else if(sp.slot_groups){ ED.mode='slotgroups'; ED.recipes=null; ED.slotgroups=[...sp.slot_groups]; }
+  else { ED.mode='recipe'; ED.recipes=[]; ED.slotgroups=null; }
+}
+
+function recipeSegsHtml(r){
+  if(!r) return '';
+  return (Array.isArray(r[0])?r:[r]).map((recipe,i)=>{
+    const segs=recipe.map(s=>{
+      const cat=Array.isArray(s)?s.join('/'):s;
+      const cls=cat==='夹菜'?'s-open':(cat.includes('上桌')?'s-excl':'');
+      return `<span class="seg ${cls}">${esc(cat)}</span>`;
+    }).join(' → ');
+    return `<div style="margin:3px 0"><b style="color:var(--muted);font-size:12px">配方${i+1}：</b>${segs}</div>`;
+  }).join('');
+}
+
+function renderDetail(d){
+  const sp=d.spec;
+  const catChips=d.categories.map(c=>{
+    const cls=(c.name==='夹菜')?'c-open':(c.name.includes('上桌')?'c-excl':'');
+    return `<span class="chip ${cls}">${esc(c.name)}<span class="n">${c.count}</span></span>`;
+  }).join('');
+
+  const recent=d.recent_history.length
+    ? d.recent_history.map((h,i)=>`<tr><td class="num">${d.history_count-d.recent_history.length+i+1}</td><td class="mono">${esc((h.combo||[]).join(' + '))}</td><td>${esc(h.title||'')}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="empty">暂无历史</td></tr>';
+
+  const bgmDirs=sp.bgm_dirs||[];
+  const bgmTotal=bgmDirs.filter(x=>x.exists).reduce((a,b)=>a+b.count,0);
+  const bgmBad=bgmDirs.filter(x=>!x.exists).length;
+
+  $('#content').innerHTML=`
+  <div class="cards">
+    <div class="card"><div class="k">素材文件</div><div class="v">${d.pool_count}<small> 个</small></div></div>
+    <div class="card"><div class="k">类别数</div><div class="v">${d.categories.length}<small> 类</small></div></div>
+    <div class="card"><div class="k">BGM 曲库</div><div class="v">${bgmTotal}<small> 首 / ${bgmDirs.length} 夹</small></div></div>
+    <div class="card"><div class="k">已产成片</div><div class="v" id="cardMade">${d.history_count}<small> 条</small></div></div>
+    <div class="card"><div class="k">下一批起点</div><div class="v" id="cardNext">${d.next_offset+1}<small> 号</small></div></div>
+    <div class="card"><div class="k">每条段数</div><div class="v">${sp.slots==null?'—':sp.slots}<small> 段</small><span style="font-size:11px;color:var(--muted);margin-left:6px">${sp.slots_auto?'自动':'手动'}</span></div></div>
+    <div class="card"><div class="k">卡点模式</div><div class="v" style="font-size:16px">${sp.beat_sync===false?'不卡点':'BGM 卡点'}</div></div>
+  </div>
+
+  ${d.pool_tree?'':
+    `<div style="margin:0 0 16px;padding:11px 15px;background:#fff7e6;border:1px solid #ffd591;
+      border-radius:10px;color:#ad6800;font-size:13px;line-height:1.7">
+      ⚠ <b>后端进程还是旧版本（v${esc(STATE.version||'?')}）</b>：页面已经是新版，但后台没重新加载，
+      所以「项目卡 / 子项目 / 全部随机」这些新功能拿不到数据。
+      请<b>完全退出控制台</b>（双击「关闭控制台.command」，再重新启动）后刷新本页。
+    </div>`}
+
+  <section><h2>素材类别（当前）</h2><div class="chips">${catChips}</div></section>
+
+  <section><h2>素材池 · 项目文件夹</h2>
+    <div class="hint" style="margin-top:0">每个文件夹是一张<b>项目卡</b>：鼠标悬停可看完整磁盘地址，以及这个文件夹下有哪些小项目（子文件夹）、各多少个素材。加进来<b>自动保存</b>。</div>
+    <div id="poolEdit"></div>
+    <div class="pool-add">
+      <input id="poolPath" placeholder="~/Desktop/02 鱼杂内容/… 或绝对路径">
+      <button class="btn ghost sm" onclick="pickFolder()">📁 浏览选择</button>
+      <button class="btn ghost sm" onclick="addPool()">＋ 添加</button>
+      <button class="btn ghost sm" onclick="scanFolder()">🔍 扫描识别</button>
+      <button class="btn ghost sm" onclick="showBackups()">🕘 历史版本</button>
+    </div>
+    <div class="drop" id="poolDrop">把<b>素材文件夹</b>拖到这里 → 自动识别路径</div>
+    <div id="poolDropOut"></div>
+    <div id="scanOut"></div>
+    <div id="bakOut"></div>
+  </section>
+
+  <section><h2>剪辑规则 · 拖拽拼装</h2>
+    <div class="hint" style="margin-top:0">从下面的<b>类别托盘</b>把类别拖进配方 = 加一段；把配方里的块拖到「拖走移除」= 删掉；也可以直接点块右上角 ×。</div>
+    <div class="palette" id="palette"></div>
+    <div id="ruleEdit"></div>
+    <div style="margin-top:16px" id="slotsRow">
+      <span style="font-size:13px;font-weight:600;margin-right:8px">每条段数</span>
+      <input type="number" id="edSlots" min="1" max="30" step="1"
+        value="${ED.slots==null?'':ED.slots}" ${ED.slots==null?'disabled':''}
+        oninput="onSlotsInput()"
+        style="width:72px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;font-size:13px">
+      <span style="font-size:12px;color:var(--muted)">段</span>
+      <label style="font-size:12.5px;margin-left:14px">
+        <input type="checkbox" id="cbSlotsAuto" ${ED.slots==null?'checked':''} onchange="onSlotsAuto()"> 自动（按配方长度）
+      </label>
+      <div class="hint" id="slotsHint" style="margin-top:6px"></div>
+    </div>
+    <div style="margin-top:14px">
+      <button class="btn primary" onclick="saveRules('rule')">💾 保存规则</button>
+      <span id="ruleDirty" style="display:none;font-size:12px;color:#d46b08;margin-left:10px">● 有改动未保存</span>
+    </div>
+
+    <div class="sub-h" style="margin-top:22px">AI 自动部署规则</div>
+    <div class="ai-box" id="aiBox"></div>
+  </section>
+
+  <section><h2>BGM 曲库</h2>
+    <div class="bgm-summary">
+      <div><span class="n">${bgmTotal}</span> <span class="hint">首 / ${bgmDirs.length} 个文件夹</span></div>
+      <div><span class="hint">卡点：</span><b>${sp.beat_sync===false?'不卡点':'BGM 卡点'}</b></div>
+      ${bgmBad?`<div class="hint" style="color:var(--red)">⚠ ${bgmBad} 个路径不存在</div>`:''}
+      <button class="btn primary sm" style="margin-left:auto" onclick="showBgm(STATE.key)">🎵 打开 BGM 库（编辑 / 保存 / 试听）</button>
+    </div>
+    <div class="hint" style="margin-top:8px">曲库文件夹、卡点、选用曲目、保存范围与试听都集中在独立的「BGM 库」页。</div>
+  </section>
+
+  <section><h2>生成一批</h2>
+    <div class="form">
+      <div class="field"><label>条数</label><input id="fCount" type="number" value="30" min="1"></div>
+      <div class="field"><label>种子（留空随机）</label><input id="fSeed" type="number" placeholder="自动"></div>
+      <div class="field"><label>标题/命名起点</label><input id="fOffset" type="number" value="${d.next_offset}"></div>
+      <div class="field"><label>倍速</label><input id="fSpeed" type="number" step="0.05" value="1.0"></div>
+      <div class="field">
+        <label>速度方式</label>
+        <div style="display:flex;gap:12px;align-items:center;height:38px">
+          <label class="radio"><input type="radio" name="spmode" value="video" checked> 只画面</label>
+          <label class="radio"><input type="radio" name="spmode" value="both"> 画面+BGM</label>
+        </div>
+      </div>
+      <button class="btn ghost" onclick="doDryRun()">① 干跑体检</button>
+      <button class="btn primary" id="btnGen" onclick="doGenerate(false)">② 正式生成</button>
+      <button class="btn ghost sm" onclick="loadStatus()">🔄 检测剪映</button>
+      <button class="btn danger sm" id="btnForce" onclick="doGenerate(true)" title="跳过剪映检测强制生成（剪映运行时生成可能造成草稿索引重复）">⚠ 强制运行</button>
+    </div>
+    <div class="hint">正式生成会写草稿进剪映，需先 ⌘Q 退出剪映。干跑只打印选片方案与体检、不写盘。</div>
+    <div id="genStatus"></div>
+    <div id="runOut"></div>
+  </section>
+
+  <section><h2>最近产出（最近 10 条）</h2>
+    <table><tr><th>#</th><th>镜头序列</th><th>文案</th></tr>${recent}</table>
+  </section>
+
+  <section><h2 class="coll-hd" id="draftSecHd" onclick="collToggleDom('draftSecWrap','draftSecHd')">
+      <span class="caret">▼</span>
+      <span class="coll-t" style="font-size:15px">剪映草稿</span>
+      <span class="coll-act" style="margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:400">点击收起 / 展开</span>
+    </h2>
+    <div class="coll" id="draftSecWrap">
+    <div class="tabs">
+      <div class="tab active" id="tabDrafts" onclick="showDrafts()">草稿列表</div>
+      <div class="tab" id="tabOrphans" onclick="showOrphans()">孤儿草稿（可补注册）</div>
+    </div>
+    <div id="draftPanel"></div>
+    </div>
+  </section>
+  <div id="projTip"></div>
+  <div id="catPick"></div>`;
+
+  renderPoolEdit();
+  renderRuleEdit();
+  renderPalette();
+  bindDropZones();
+  loadAiBox();
+  collInit('draftSecWrap','draftSecHd',true);   // 草稿区可收起（记在 localStorage）
+  loadDrafts();
+}
+
+/* ---------- 每条段数 ---------- */
+/* ED.slots: null = 自动（按配方长度算）；数字 = 手动指定。 */
+function slotsRecipeLens(){
+  const cr=ED.recipes||[];
+  if(cr.length) return cr.map(r=>r.length);
+  const sg=ED.slotgroups||[];
+  return sg.length? [sg.length] : [];
+}
+function onSlotsAuto(){
+  const auto=$('#cbSlotsAuto').checked;
+  const inp=$('#edSlots');
+  if(auto){ ED.slots=null; inp.disabled=true; inp.value=''; }
+  else{
+    inp.disabled=false;
+    if(!inp.value) inp.value=6;
+    ED.slots=Math.max(1,parseInt(inp.value,10)||6);
+  }
+  renderSlotsHint();
+}
+function onSlotsInput(){
+  const n=parseInt($('#edSlots').value,10);
+  ED.slots=(n>=1)?n:null;
+  renderSlotsHint();
+}
+function renderSlotsHint(){
+  const el=$('#slotsHint'); if(!el) return;
+  const lens=slotsRecipeLens();
+  // 前置拦截：段数比素材池还多，出片会直接报错（generator 的「素材池只有 N 条」检查）。
+  // 先说清楚，别等用户点了生成才看到报错。
+  const poolN=STATE.detail?.pool_count||0;
+  if(ED.slots!=null && poolN && ED.slots>poolN){
+    el.innerHTML=`<span style="color:var(--red)">素材池只有 ${poolN} 条，铺不出 `
+      +`${ED.slots} 个坑位 → 一出片就会报错。请把段数改到 ${poolN} 以内，或补充素材。</span>`;
+    return;
+  }
+  if(ED.slots==null){
+    if(!lens.length){ el.textContent='本店没有配方 → 按默认 6 段出片。'; return; }
+    el.textContent=new Set(lens).size===1
+      ? `按配方算：每条 ${lens[0]} 段。`
+      : `按配方算：多个配方长度不同（${lens.join(' / ')} 段），每条成片长度会不一样。`;
+    return;
+  }
+  if(!lens.length){
+    el.textContent=`没有配方 → 从素材池随机挑 ${ED.slots} 段（尽量避开相邻同类别）。`;
+    return;
+  }
+  const L=lens[0];
+  const same=new Set(lens).size===1;
+  if(!same){
+    el.textContent=`配方长度不一致（${lens.join(' / ')} 段），统一按 ${ED.slots} 段出片：`
+      +'长的截末尾、短的末尾补坑位（补位不与前一段同类）。';
+  } else if(L===ED.slots){
+    el.textContent=`与配方一致（${L} 段），配方原样使用。`;
+  } else if(L>ED.slots){
+    el.textContent=`配方 ${L} 段 → 截为 ${ED.slots} 段（砍掉末尾 ${L-ED.slots} 个坑位，'
+      +'⚠ 结尾动作可能被砍掉）。`;
+  } else {
+    el.textContent=`配方 ${L} 段 → 补到 ${ED.slots} 段（末尾加 ${ED.slots-L} 个坑位，'
+      +'从用得最少的类别里挑，且不与前一段同类）。`;
+  }
+}
+
+/* ---------- 拖入识别路径 ----------
+   ⚠ 浏览器出于安全限制**拿不到本地绝对路径**（拖拽只给名字），
+     所以做法是：把名字发给本机后端，在「已配置素材夹的父目录 + 常见根目录」下
+     按名字搜出来，再让用户点选确认。想直接拿真路径就用「📁 浏览选择」（系统选择器）。 */
+function collectDrop(dt){
+  const out=[];
+  const items=Array.from((dt&&dt.items)||[]);
+  let hit=false;
+  items.forEach(it=>{
+    if(it.kind!=='file') return;
+    hit=true;
+    const f=it.getAsFile?it.getAsFile():null;
+    let en=null; try{ en=it.webkitGetAsEntry?it.webkitGetAsEntry():null; }catch(e){}
+    if(en) out.push({name:en.name, kind:en.isDirectory?'dir':'file',
+                     size:en.isDirectory?null:(f?f.size:null)});
+    else if(f) out.push({name:f.name, kind:'file', size:f.size});
+  });
+  if(!hit) Array.from((dt&&dt.files)||[]).forEach(f=>out.push({name:f.name,kind:'file',size:f.size}));
+  return out;
+}
+
+function bindDropZones(){
+  [['poolDrop','poolDropOut','pool'],['bgmDrop','bgmDropOut','bgm']].forEach(conf=>{
+    const el=document.getElementById(conf[0]);
+    if(!el) return;
+    const out=document.getElementById(conf[1]), kind=conf[2];
+    const stop=e=>{ e.preventDefault(); e.stopPropagation(); };
+    ['dragenter','dragover'].forEach(ev=>el.addEventListener(ev,e=>{
+      stop(e); el.classList.add('hot');      // ⚠ 必须 preventDefault，否则浏览器会直接打开文件
+    }));
+    ['dragleave','dragend'].forEach(ev=>el.addEventListener(ev,e=>{ stop(e); el.classList.remove('hot'); }));
+    el.addEventListener('drop',async e=>{
+      stop(e); el.classList.remove('hot');
+      // ⚠ DataTransfer 在事件结束后就失效了，必须同步收集
+      const items=collectDrop(e.dataTransfer);
+      if(!items.length){ toast('没读到拖入的内容，试试拖文件夹本身','info'); return; }
+      await locateDropped(items, out, kind);
+    });
+  });
+}
+
+async function locateDropped(items, out, kind){
+  if(!out) return;
+  out.innerHTML='<div class="hint">正在本机按名字定位…（第一次会慢一两秒）</div>';
+  let r;
+  try{
+    r=await jpost('/api/locate_dropped',
+      {names:items.map(x=>x.name), sizes:items.map(x=>x.size)});
+  }catch(e){
+    out.innerHTML=`<div class="hint" style="color:var(--red)">定位失败：${esc(e.message)}</div>`;
+    return;
+  }
+  out.innerHTML='';
+  (r.items||[]).forEach(it=>renderDropHits(out, it, kind));
+}
+
+function renderDropHits(out, it, kind){
+  const hits=it.hits||[];
+  if(!hits.length){
+    out.insertAdjacentHTML('beforeend',
+      `<div class="hint" style="color:var(--red)">⚠ 没找到「${esc(it.name)}」——可能不在常用目录下，请用「📁 浏览选择」。</div>`);
+    return;
+  }
+  if(hits.length===1){                         // 唯一命中直接填入
+    const box=document.createElement('div'); out.appendChild(box);
+    addDroppedPath(hits[0], box, kind, it.name);
+    return;
+  }
+  const wrap=document.createElement('div');
+  wrap.innerHTML=`<div class="hint">「${esc(it.name)}」在本机找到 ${hits.length} 个同名位置，点一个用：</div>`;
+  hits.forEach(h=>{
+    const row=document.createElement('div'); row.className='drop-hit';
+    row.innerHTML=`<span class="p">${esc(h.path)}</span>
+      <span class="m">${h.kind==='dir'?((h.video_count||0)+' 视频'):'文件'}</span>
+      <button class="btn ghost sm">用这个</button>`;
+    row.querySelector('button').onclick=()=>addDroppedPath(h, row, kind, it.name);
+    wrap.appendChild(row);
+  });
+  out.appendChild(wrap);
+}
+
+function addDroppedPath(h, anchor, kind, name){
+  let p=h.path;
+  if(h.kind==='file'){                          // 素材池/BGM 收的是文件夹，拖了文件就取它所在的夹
+    const i=Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+    if(i>0) p=p.slice(0,i);
+  }
+  const list=(kind==='pool')?ED.pool:BG.dirs;
+  let msg;
+  if(list.includes(p)) msg='这个路径已经在列表里了';
+  else{
+    list.push(p);
+    if(kind==='pool'){ renderPoolEdit(); autoSave('pool'); msg='✅ 已加入（自动保存）'; }
+    else{ bgmRenderDirs(); bgmMarkDirty(); msg='✅ 已加入（记得点「💾 保存」）'; }
+  }
+  if(anchor) anchor.insertAdjacentHTML('beforeend',
+    `<div class="hint" style="color:var(--green)">${msg}：${esc(p)}`+
+    `${h.kind==='file'?`（拖入的是文件「${esc(name)}」，已取它所在的文件夹）`:''}</div>`);
+}
+
+/* ---------- 素材池（项目卡 + 悬停浮层） ---------- */
+function projOf(i){
+  const p=ED.pool[i]||'';
+  const tree=(STATE.detail&&STATE.detail.pool_tree)||[];
+  const norm=s=>String(s||'').replace(/\/+$/,'');
+  return tree.find(x=>x.path===p)
+      || tree.find(x=>norm(x.path)===norm(p))
+      || tree.find(x=>basename(x.path)===basename(p))
+      // 没匹配到：**不要**断言「路径不存在」（后端是旧版时根本没这个字段）
+      || {path:p, exists:null, total:0, subs:[]};
+}
+/* 三态：true=在 / false=确实不存在 / null=没拿到数据 */
+function projMeta(t){
+  if(t.exists===true) return `<b>${t.total}</b> 个素材 · <b>${(t.subs||[]).length}</b> 个小项目`;
+  if(t.exists===false) return '<b style="color:var(--red)">路径不存在</b>';
+  return '<span style="color:var(--muted)">未读取到（后端可能不是最新版）</span>';
+}
+function renderPoolEdit(){
+  const el=$('#poolEdit'); if(!el) return;
+  if(!ED.pool.length){ el.innerHTML='<div class="hint" style="margin-top:0">未配置素材文件夹。</div>'; return; }
+  el.innerHTML=ED.pool.map((p,i)=>{
+    const t=projOf(i);
+    const bad=(t.exists===false);
+    return `<div class="proj ${bad?'proj-bad':''}"
+      onmouseenter="projTipShow(event,${i})" onmousemove="projTipMove(event)" onmouseleave="projTipHide()">
+      <span class="ico">📁</span>
+      <span class="nm" title="${esc(p)}">${esc(basename(p))}</span>
+      <span class="meta">${projMeta(t)}</span>
+      <span class="sp"></span>
+      <span class="x" title="移除这个项目文件夹" onclick="removePool(${i})">×</span>
+    </div>`;
+  }).join('');
+}
+function projTipShow(e,i){
+  const tip=$('#projTip'); if(!tip) return;
+  const t=projOf(i);
+  const rows=(t.subs||[]).map(s=>`<tr><td>${esc(s.name)}</td><td class="n">${s.count}</td></tr>`).join('')
+    || `<tr><td colspan="2" style="color:var(--muted)">${t.exists===null?'（后端没返回子项目数据）':'（没有子文件夹）'}</td></tr>`;
+  const ttl = t.exists===true
+    ? `共 <b>${t.total}</b> 个素材 · ${(t.subs||[]).length} 个小项目`
+    : (t.exists===false ? '⚠ 路径不存在' : '未读取到（后端可能不是最新版，重启控制台试试）');
+  tip.innerHTML=`<div class="pth">${esc(t.path||ED.pool[i]||'')}</div>
+    <div class="ttl">${ttl}</div>
+    <div class="many"><table>${rows}</table></div>`;
+  tip.style.display='block';
+  projTipMove(e);
+}
+function projTipMove(e){
+  const tip=$('#projTip'); if(!tip||tip.style.display==='none') return;
+  const w=tip.offsetWidth||330, h=tip.offsetHeight||160;
+  let x=e.clientX+14, y=e.clientY+16;
+  if(x+w>innerWidth-12) x=Math.max(8,e.clientX-w-14);
+  if(y+h>innerHeight-12) y=Math.max(8,e.clientY-h-16);
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function projTipHide(){ const tip=$('#projTip'); if(tip) tip.style.display='none'; }
+function removePool(i){ ED.pool.splice(i,1); renderPoolEdit(); autoSave('pool'); }
+function addPool(){
+  const v=$('#poolPath').value.trim();
+  if(!v) return;
+  if(!ED.pool.includes(v)) ED.pool.push(v);
+  $('#poolPath').value='';
+  renderPoolEdit(); autoSave('pool');
+}
+async function pickFolder(){
+  const r=await jget('/api/pick_folder');
+  if(r.cancelled){ return; }
+  $('#poolPath').value=r.path;
+  scanFolder();
+}
+async function scanFolder(){
+  const v=$('#poolPath').value.trim();
+  if(!v){ toast('先填/选一个文件夹路径','info'); return; }
+  $('#scanOut').innerHTML='<div class="hint">扫描中…</div>';
+  const r=await jget('/api/scan_folder?path='+encodeURIComponent(v));
+  if(!r.exists){ $('#scanOut').innerHTML=`<div class="hint" style="color:var(--red)">路径不存在：${esc(r.path)}</div>`; return; }
+  const cats=r.categories.map(c=>`<span class="cat">${esc(c.name)}<span class="n">${c.count}</span></span>`).join('');
+  const files=r.categories.map(c=>`▸ ${esc(c.name)}\n`+c.files.map(f=>`    ${esc(f)}`).join('\n')).join('\n');
+  $('#scanOut').innerHTML=`
+    <div class="scan">
+      <div><b>识别到 ${r.video_count} 个视频 · ${r.categories.length} 类</b></div>
+      <div style="margin-top:6px">${cats}</div>
+      <div class="files">${files}</div>
+    </div>`;
+}
+
+/* ══════════════════ BGM 库（独立页：曲库 / 保存范围 / 试听） ══════════════════ */
+const BG={key:null, dirs:[], beat:true, rows:[], group:'', groupExplicit:false,
+          groupStores:[], allStores:[], groups:[], selGroups:[],
+          scope:'store', groupEdit:null,
+          orig:null, data:null, audio:null, playing:null, q:''};
+
+async function showBgm(key){
+  const list=(STATE.stores&&STATE.stores.stores)||[];
+  const k=key||STATE.key||STATE.lastKey||(list[0]||{}).key;
+  if(!k){ toast('先在左侧选一个店面','info'); return; }
+  STATE.key=k;
+  try{ history.replaceState(null,'','#bgm='+encodeURIComponent(k)); }catch(e){}
+  document.querySelectorAll('.store').forEach(n=>n.classList.toggle('active',n.dataset.k===k));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $('#navBgm').classList.add('active');
+  $('#pageTitle').textContent='BGM 库 · 曲库与使用规则';
+  $('#btnDelStore').style.display='none';
+  const hsb=$('#hzSave'); if(hsb) hsb.classList.remove('show');
+  const csb=$('#cpSave'); if(csb) csb.classList.remove('show');
+  $('#content').innerHTML='<div class="empty">正在加载 BGM 库…</div>';
+  await bgmLoad(k);
+}
+
+async function bgmLoad(k){
+  BG.key=k||BG.key;
+  try{ BG.data=await jget('/api/bgm?key='+encodeURIComponent(BG.key)); }
+  catch(e){ $('#content').innerHTML='<div class="empty">加载失败：'+esc(e.message)+'</div>'; return; }
+  const d=BG.data;
+  BG.dirs=(d.dirs||[]).map(x=>x.path);
+  BG.beat=d.beat_sync!==false;
+  BG.rows=(d.rows||[]).map(r=>({...r,selected:!!r.selected}));
+  BG.group=d.group||''; BG.groupExplicit=!!d.group_explicit;
+  BG.groupStores=d.group_stores||[]; BG.allStores=d.all_stores||[];
+  const gcnt={}; (BG.allStores||[]).forEach(s=>{ gcnt[s.group]=(gcnt[s.group]||0)+1; });
+  BG.groups=Object.keys(gcnt).map(name=>({name,count:gcnt[name]}))
+              .sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+  BG.selGroups=[BG.group].filter(Boolean);
+  BG.scope='store'; BG.groupEdit=null; BG.q='';
+  bgmStopPlay();
+  BG.orig=bgmSnapshot();
+  bgmRender();
+  bgmUpdateSaveBar();
+}
+
+function bgmSnapshot(){
+  return JSON.stringify({dirs:BG.dirs.slice(), beat:BG.beat,
+    sel:BG.rows.filter(r=>r.selected).map(r=>r.path), group:BG.groupEdit,
+    scope:BG.scope, groups:BG.selGroups.slice().sort()});
+}
+function bgmDirty(){ return !!BG.orig && bgmSnapshot()!==BG.orig; }
+function bgmDiffCount(){
+  if(!BG.orig) return 0;
+  const o=JSON.parse(BG.orig);
+  const diff=(a,b)=>a.filter(x=>!b.includes(x)).length+b.filter(x=>!a.includes(x)).length;
+  let n=diff(o.dirs||[],BG.dirs);
+  if(o.beat!==BG.beat) n++;
+  n+=diff(o.sel||[],BG.rows.filter(r=>r.selected).map(r=>r.path));
+  if((o.group||null)!==(BG.groupEdit||null)) n++;
+  if((o.scope||'store')!==BG.scope) n++;
+  n+=diff(o.groups||[],BG.selGroups.slice().sort());
+  return n;
+}
+function bgmMarkDirty(){ bgmUpdateSaveBar(); }
+function bgmUpdateSaveBar(){
+  const box=$('#bgmSave'); if(!box) return;
+  const n=bgmDiffCount(), el=$('#bgmDiff');
+  if(el) el.textContent=n;
+  box.classList.toggle('show',n>0);
+}
+function bgmRevert(){ bgmLoad(BG.key); toast('已撤销，回到上次保存的状态','info'); }
+
+function bgmRender(){
+  const d=BG.data||{};
+  const storeOpts=BG.allStores.map(s=>
+    `<option value="${esc(s.key)}" ${s.key===BG.key?'selected':''}>${esc(s.label)}（${esc(s.group)}）</option>`).join('');
+  const grpBoxes=BG.groups.map(g=>
+    `<label class="gchk ${BG.selGroups.includes(g.name)?'on':''}"><input type="checkbox"
+       value="${esc(g.name)}" ${BG.selGroups.includes(g.name)?'checked':''}
+       onchange="bgmToggleGroup(this)">${esc(g.name)}
+       <span class="n">${g.count} 个项目</span></label>`).join('');
+  const defDirs=(d.default_dirs||[]).map(x=>
+    `<div class="${x.exists?'ok':'bad'}">${x.exists?'✓':'✗'} ${esc(x.path)}（${x.count} 首）</div>`).join('')
+    || '<div class="bad">（默认曲库没有配置文件夹）</div>';
+  const same=!!d.is_default_dirs;
+  $('#content').innerHTML=`
+  <section><h2>BGM 库 <span class="hint">曲库文件夹 / 卡点 / 选用曲目 / 保存范围</span></h2>
+    <div class="bgm-bar">
+      <label>当前项目</label>
+      <select onchange="bgmSwitch(this.value)">${storeOpts}</select>
+      <label>分组标签</label>
+      <input type="text" id="bgmGroup" value="${esc(BG.group)}" placeholder="留空 = 按项目名自动推断"
+             oninput="bgmOnGroup(this.value)">
+      <span class="hint">${BG.groupExplicit?'已显式设置':'自动推断'} · 同标签 ${BG.groupStores.length} 个项目</span>
+    </div>
+    <div class="bgm-scope">
+      <span style="font-size:12px;color:var(--muted)">保存范围</span>
+      <label><input type="radio" name="bgmScope" value="store" ${BG.scope==='store'?'checked':''}
+        onchange="bgmSetScope('store')"> 仅本项目</label>
+      <label><input type="radio" name="bgmScope" value="group" ${BG.scope==='group'?'checked':''}
+        onchange="bgmSetScope('group')"> 按标签批量保存（可多选）</label>
+      <div class="bgm-groups" id="bgmGroups">${grpBoxes}</div>
+    </div>
+    <div class="hint" style="margin-top:6px">勾选哪些标签，这套 BGM 规则就写到这些标签下的所有项目（写前各自自动备份）。「分组标签」改名只作用于当前项目。</div>
+  </section>
+
+  <section><h2>曲库文件夹</h2>
+    <div class="hint" style="margin-top:0">成片从这些文件夹里挑 BGM（递归子目录，支持 mp3 / wav / m4a / aac / flac）。</div>
+    <div class="bgm-def">
+      <div class="hd"><span class="tag">默认曲库</span>
+        <span>来自模板店面：<b>${esc((d.default_from||{}).label||'—')}</b></span>
+        ${same?'<span style="color:var(--green);font-size:12px">✓ 当前与本店一致</span>':''}
+        <button class="btn ghost sm" style="margin-left:auto" ${same?'disabled':''}
+          onclick="bgmUseDefault()">↩ 套用默认曲库</button></div>
+      <div class="paths">${defDirs}</div>
+    </div>
+    <div class="sub-h">本项目使用的 BGM 文件夹</div>
+    <div id="bgmDirs"></div>
+    <div class="pool-add">
+      <input id="bgmPath" placeholder="~/Desktop/… 或绝对路径">
+      <button class="btn ghost sm" onclick="pickBgmFolder()">📁 浏览选择</button>
+      <button class="btn ghost sm" onclick="addBgm()">＋ 添加文件夹</button>
+      <button class="btn ghost sm" onclick="scanBgm()">🔍 扫描曲库</button>
+    </div>
+    <div class="drop" id="bgmDrop">把 <b>BGM 文件夹</b> 拖到这里 → 自动识别路径</div>
+    <div id="bgmDropOut"></div><div id="bgmScanOut"></div>
+    <div style="margin-top:14px">
+      <label style="font-size:13px"><input type="checkbox" id="bgmBeat" ${BG.beat?'checked':''}
+        onchange="bgmSetBeat(this.checked)"> BGM 卡点（不勾选 = 素材完整播出、不卡点）</label>
+    </div>
+  </section>
+
+  <section><h2>本项目选用哪些 BGM <span class="hint">点 ▶ 试听</span></h2>
+    <div class="hint" style="margin-top:0">默认整库全选；取消勾选即出片不用这首。</div>
+    <div id="bgmPickNew"></div>
+  </section>`;
+  bgmRenderDirs(); bgmRenderPick(); bindDropZones();
+}
+
+function bgmRenderDirs(){
+  const el=$('#bgmDirs'); if(!el) return;
+  const info=(BG.data&&BG.data.dirs)||[];
+  if(!BG.dirs.length){
+    el.innerHTML='<div class="hint" style="color:var(--red)">未配置 BGM 文件夹（不配无法生成）。</div>';
+    return;
+  }
+  let total=0;
+  const rows=BG.dirs.map((p,i)=>{
+    const x=info.find(y=>y.path===p);
+    let tag,color='var(--muted)';
+    if(!x){ tag='新加 · 未保存'; }
+    else if(!x.exists){ tag='⚠ 路径不存在'; color='var(--red)'; }
+    else { tag=x.count+' 首'; total+=x.count; }
+    return `<div class="pool-item"><span class="p">${esc(p)}</span>
+      <span style="font-size:12px;color:${color};white-space:nowrap">${esc(tag)}</span>
+      <span class="x" title="删除" onclick="removeBgm(${i})">×</span></div>`;
+  }).join('');
+  el.innerHTML=rows+`<div class="hint" style="margin-top:6px">已保存曲库合计 <b>${total}</b> 首（多夹合并去重）。</div>`;
+}
+
+function removeBgm(i){ BG.dirs.splice(i,1); bgmRenderDirs(); bgmMarkDirty(); }
+function addBgm(){
+  const v=$('#bgmPath').value.trim();
+  if(!v){ toast('先填/选一个 BGM 文件夹路径','info'); return; }
+  if(!BG.dirs.includes(v)) BG.dirs.push(v);
+  $('#bgmPath').value=''; $('#bgmScanOut').innerHTML='';
+  bgmRenderDirs(); bgmMarkDirty();
+}
+async function pickBgmFolder(){
+  const r=await jget('/api/pick_folder?prompt='+encodeURIComponent('选择 BGM 文件夹'));
+  if(r.cancelled){ return; }
+  $('#bgmPath').value=r.path;
+  scanBgm();
+}
+async function scanBgm(){
+  const v=$('#bgmPath').value.trim();
+  if(!v){ toast('先填/选一个 BGM 文件夹路径','info'); return; }
+  $('#bgmScanOut').innerHTML='<div class="hint">扫描中…</div>';
+  const r=await jget('/api/bgm_scan?path='+encodeURIComponent(v));
+  if(!r.exists){
+    $('#bgmScanOut').innerHTML=`<div class="hint" style="color:var(--red)">路径不存在：${esc(r.path)}</div>`;
+    return;
+  }
+  $('#bgmScanOut').innerHTML=`
+    <div class="scan">
+      <div><b>识别到 ${r.audio_count} 首 BGM</b></div>
+      <div class="files">${r.files.map(esc).join('\n')||'（该文件夹里没有音频文件）'}</div>
+    </div>`;
+}
+function bgmUseDefault(){
+  const paths=(BG.data.default_dirs||[]).map(x=>x.path);
+  if(!paths.length){ toast('默认曲库没有可套用的文件夹','info'); return; }
+  BG.dirs=paths.slice(); bgmRenderDirs(); bgmMarkDirty();
+  toast('已填入默认曲库，点「💾 保存」生效','info');
+}
+function bgmSetBeat(v){ BG.beat=!!v; bgmMarkDirty(); }
+function bgmSetScope(v){ BG.scope=v; bgmMarkDirty(); }
+function bgmToggleGroup(cb){
+  const g=cb.value;
+  if(cb.checked){ if(!BG.selGroups.includes(g)) BG.selGroups.push(g); }
+  else BG.selGroups=BG.selGroups.filter(x=>x!==g);
+  const box=cb.closest('.gchk'); if(box) box.classList.toggle('on',cb.checked);
+  if(cb.checked && BG.scope!=='group'){
+    BG.scope='group';
+    const r=document.querySelector('input[name=bgmScope][value=group]');
+    if(r) r.checked=true;
+  }
+  bgmMarkDirty();
+}
+function bgmOnGroup(v){ BG.groupEdit=v.trim(); bgmUpdateSaveBar(); }
+async function bgmSwitch(k){
+  if(bgmDirty() && !confirm('BGM 规则有未保存改动，切换项目会丢弃。继续？')){ bgmRender(); return; }
+  showBgm(k);
+}
+
+function bgmRenderPick(){
+  const el=$('#bgmPickNew'); if(!el) return;
+  if(!BG.rows.length){
+    el.innerHTML='<div class="hint" style="color:var(--red)">曲库为空——先在上面加 BGM 文件夹并保存。</div>';
+    return;
+  }
+  const body=BG.rows.map((r,i)=>`<label class="bp-row ${r.selected?'on':''}" data-p="${esc(r.path)}">
+      <button type="button" class="play" data-i="${i}" title="试听"
+        onclick="event.preventDefault();event.stopPropagation();bgmPlay(${i})">▶</button>
+      <input type="checkbox" ${r.selected?'checked':''} onchange="bgmPickToggle(${i},this.checked)">
+      <span class="nm" title="${esc(r.path)}">${esc(r.name)}</span>
+      <span class="dir" title="${esc(r.dir)}">${esc(r.dir_name||'')}</span>
+      <span class="cnt ${(r.count||r.count_all)?'':'zero'}"
+        title="本店累计用过 ${r.count} 次 · 全部店面累计 ${r.count_all||0} 次">${
+        (r.count||r.count_all)
+          ? `本店 <b>${r.count}</b> 次 · <span class="g">全局 ${r.count_all||0} 次</span>`
+          : '未用'}</span>
+    </label>`).join('');
+  const sel=BG.rows.filter(r=>r.selected).length;
+  el.innerHTML=`
+    <div class="bp-tools">
+      <button class="btn ghost sm" onclick="bgmPickAll(true)">全选</button>
+      <button class="btn ghost sm" onclick="bgmPickAll(false)">全不选</button>
+      <button class="btn ghost sm" onclick="bgmResetFilter()">↺ 恢复默认（用全部）</button>
+      <span class="hint" style="margin:0">已勾选 <b id="bgmSel">${sel}</b> / ${BG.rows.length} 首</span>
+    </div>
+    <div style="margin-bottom:8px">
+      <input id="bgmSearch" placeholder="🔍 搜歌名" value="${esc(BG.q)}" oninput="bgmFilterList()"
+        style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px">
+    </div>
+    <div class="bp-list" id="bgmList">${body}</div>
+    <audio id="bgmAudio" class="bgm-audio" controls></audio>`;
+  BG.audio=$('#bgmAudio');
+  if(BG.audio) BG.audio.addEventListener('ended',()=>{ BG.playing=null; bgmRenderPlayState(); });
+  bgmFilterList(); bgmRenderPlayState();
+}
+
+function bgmFilterList(){
+  const inp=$('#bgmSearch'); if(inp) BG.q=inp.value;
+  const q=(BG.q||'').trim().toLowerCase();
+  document.querySelectorAll('#bgmList .bp-row').forEach(el=>{
+    el.style.display=(!q||(el.dataset.p||'').toLowerCase().includes(q))?'':'none';
+  });
+}
+function bgmPickToggle(i,on){
+  const r=BG.rows[i]; if(!r) return;
+  r.selected=!!on;
+  const row=document.querySelectorAll('#bgmList .bp-row')[i];
+  if(row) row.classList.toggle('on',!!on);
+  const s=$('#bgmSel'); if(s) s.textContent=BG.rows.filter(x=>x.selected).length;
+  bgmMarkDirty();
+}
+function bgmPickAll(on){
+  BG.rows.forEach(r=>r.selected=!!on);
+  document.querySelectorAll('#bgmList .bp-row').forEach(el=>{
+    el.classList.toggle('on',!!on);
+    const cb=el.querySelector('input[type=checkbox]'); if(cb) cb.checked=!!on;
+  });
+  const s=$('#bgmSel'); if(s) s.textContent=on?BG.rows.length:0;
+  bgmMarkDirty();
+}
+function bgmResetFilter(){ bgmPickAll(true); toast('已恢复默认：用全部 BGM（记得点保存）','info'); }
+
+function bgmPlay(i){
+  const r=BG.rows[i]; if(!r||!BG.audio) return;
+  if(BG.playing===r.path){ BG.audio.pause(); BG.playing=null; }
+  else{
+    BG.audio.src='/api/bgm/stream?path='+encodeURIComponent(r.path);
+    BG.audio.play().catch(e=>toast('试听失败：'+e.message,'err'));
+    BG.playing=r.path;
+  }
+  bgmRenderPlayState();
+}
+function bgmRenderPlayState(){
+  document.querySelectorAll('#bgmPickNew .play').forEach(el=>{
+    const i=+el.dataset.i;
+    const on=BG.rows[i]&&BG.rows[i].path===BG.playing;
+    el.classList.toggle('playing',!!on); el.textContent=on?'❚❚':'▶';
+  });
+}
+function bgmStopPlay(){
+  if(BG.audio){ try{ BG.audio.pause(); }catch(e){} BG.audio.src=''; }
+  BG.playing=null;
+}
+
+async function bgmSaveAll(){
+  if(!BG.data) return;
+  if(!BG.dirs.length){ toast('BGM 文件夹为空，保存后将无法生成','err'); return; }
+  if(BG.scope==='group' && !BG.selGroups.length){
+    toast('至少勾 1 个标签（或改回「仅本项目」）','info'); return;
+  }
+  const only=BG.rows.filter(r=>r.selected).map(r=>r.path);
+  if(!only.length){ toast('至少勾 1 首（想用全部点「全选」）','info'); return; }
+  const allOk=only.length===BG.rows.length;
+  const fields={
+    bgm_dirs: BG.dirs.length?BG.dirs:null,
+    bgm_dir: null,
+    beat_sync: BG.beat,
+    bgm_filter: allOk?null:{only,exclude:[]}
+  };
+  const btn=$('#bgmSaveBtn');
+  if(btn){ btn.disabled=true; btn.textContent='保存中…'; }
+  try{
+    const body={key:BG.key, scope:BG.scope, fields, group:BG.groupEdit};
+    if(BG.scope==='group') body.groups=BG.selGroups.slice();
+    const r=await jpost('/api/bgm/save', body);
+    toast(`已保存到 ${r.saved.length} 个项目（${r.saved.map(x=>x.label).join('、')}），每个都已自动备份`,'ok');
+    await bgmLoad(BG.key);
+  }catch(e){ toast('保存失败：'+e.message,'err'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='💾 保存'; } }
+}
+
+/* ---------- 镜头配方编辑器 ---------- */
+function renderRuleEdit(){
+  _renderRuleEdit();
+  renderSlotsHint();          // 配方一增删坑位，「每条段数」的提示就要跟着更新
+}
+function _renderRuleEdit(){
+  const el=$('#ruleEdit');
+  const mode=ED.ruleMode;
+  // auto 模式：隐藏类别托盘和「每条段数」，只留最大产出 + 开头/结尾
+  const palette=$('#palette'); if(palette) palette.style.display = mode==='auto' ? 'none' : '';
+  const slotsRow=$('#slotsRow'); if(slotsRow) slotsRow.style.display = mode==='auto' ? 'none' : '';
+  const btn=(m,label)=>`<button class="btn ${mode===m?'primary':'ghost'} sm" onclick="setRuleMode('${m}')">${label}</button>`;
+  const hint={recipe:'当前<b>按配方</b>：用你手写拖拽的配方出片。',
+              auto:'当前<b>自动规则</b>：不写配方，出片自动按文件数降序排镜头。',
+              random:'当前<b>纯随机</b>：只按段数抽片，配方不参与（配方原样保留）。'}[mode];
+  const modeBar=`<div class="mode-bar">
+    <span style="color:var(--muted)">出片方式</span>
+    ${btn('recipe','🧩 按配方')}
+    ${btn('auto','⚡ 自动规则')}
+    ${btn('random','🎲 纯随机')}
+    <span class="hint" style="margin:0">${hint}</span>
+  </div>`;
+  if(mode==='auto'){
+    el.innerHTML=modeBar+autoBody();
+    return;
+  }
+  if(ED.mode==='slotgroups'){
+    const rows=ED.slotgroups.map((p,i)=>`
+      <span class="rec-pos" draggable="true"
+        ondragstart="drag={r:0,i:${i}}" ondragover="event.preventDefault()" ondrop="dropSlotGroup(${i})">
+        ${esc(basename(p))}<span class="x" onclick="removeSlotGroup(${i})">×</span></span>`).join('');
+    el.innerHTML=modeBar+`
+      <div class="hint">结构配方（按顺序拼接）：</div>
+      <div class="rec-row">${rows||'<span class="hint">空</span>'}</div>
+      <div class="pool-add">
+        <input id="sgPath" placeholder="新增一段：粘贴文件夹路径">
+        <button class="btn ghost sm" onclick="addSlotGroupFolder()">＋ 加一段</button>
+      </div>`;
+    return;
+  }
+  // recipe 模式
+  if(!ED.recipes || !ED.recipes.length){
+    el.innerHTML=modeBar+`
+      <div class="hint" style="margin-top:0">还没有配方。可以从下面的类别托盘拖进来拼一套，
+      或者切到「🎲 纯随机」只按段数出片。</div>
+      <div class="pool-add">
+        <button class="btn ghost sm" onclick="newRecipe()">＋ 新建配方</button>
+      </div>`;
+    return;
+  }
+  let html='';
+  ED.recipes.forEach((recipe,ri)=>{
+    const segs=recipe.map((slot,si)=>{
+      const cat=slot.map(slotLabel).join(' + ');
+      const one=slot.length===1?slot[0]:'';
+      const cls=one==='夹菜'?'pos-open':(one.includes('上桌')?'pos-excl':'');
+      return `<span class="rec-pos ${cls}" draggable="true"
+        ondragstart="startSlotDrag(event,${ri},${si})"
+        ondragover="event.preventDefault()" ondrop="dropSlot(event,${ri},${si})">
+        ${esc(cat)}<span class="x" title="删掉这一段" onclick="removeSlot(${ri},${si})">×</span></span>`;
+    }).join(' → ');
+    html+=`<div class="rec-head"><span class="lbl">配方 ${ri+1}</span>
+      <span class="hint" style="margin:0">${recipe.length} 段</span>
+      <button class="btn ghost sm" onclick="delRecipe(${ri})">删除配方</button></div>
+      <div class="rec-row" ondragover="rowHot(event,this,true)"
+           ondragleave="rowHot(event,this,false)" ondrop="dropRow(event,${ri})">
+        ${segs||'<span class="hint" style="margin:0">空 —— 点右边的 ＋ 加一段</span>'}${segs?' → ':''}<span class="addseg" onclick="openCatPick(event,${ri})" title="点这里加一段">＋</span>
+        <span class="trash" ondragover="trashHot(event,this,true)"
+              ondragleave="trashHot(event,this,false)" ondrop="dropTrash(event,${ri})">🗑 拖走移除</span>
+      </div>`;
+  });
+  html+=`<div style="margin-top:12px">
+    <button class="btn ghost sm" onclick="addRecipe()">＋ 新配方</button>
+  </div>
+  <div class="hint">从托盘拖类别进来加段，或点配方行尾的「＋」；拖到「🗑 拖走移除」就删掉。
+    「🎲 全部随机」会<b>排除本配方其它段已经点名的类别</b>，不会抽到同一类。</div>`;
+  el.innerHTML=modeBar+html;
+}
+
+/* 出片方式开关：recipe=按配方 / random=只按段数随机。
+   ⚠ 切换**不动配方**，配方原样保留，随时切回来。 */
+function setRuleMode(m){
+  if(ED.ruleMode===m) return;
+  ED.ruleMode=m;
+  if(m==='random' && ED.slots==null){       // 纯随机必须有确定的段数
+    ED.slots=6;
+    const inp=$('#edSlots'), cb=$('#cbSlotsAuto');
+    if(inp){ inp.disabled=false; inp.value=6; }
+    if(cb) cb.checked=false;
+    renderSlotsHint();
+  }
+  markRuleDirty(); renderRuleEdit();
+  const msg={recipe:'已切回按配方出片',
+            auto:'已切到自动规则：出片自动按文件数降序排镜头，无需写配方',
+            random:'已切到纯随机：按段数抽片，配方还留着，切回来就能用'}[m];
+  toast(msg,'ok');
+}
+
+/* ---------- 配方行尾的「＋」：点开选类别（可多选），追加一段 ---------- */
+function openCatPick(e, ri){
+  e.stopPropagation();                     // 别让 document 的兜底点击立即把它关掉
+  const el=$('#catPick'); if(!el) return;
+  el.dataset.r=ri;
+  const cats=(STATE.detail&&STATE.detail.categories)||[];
+  el.innerHTML=`<div class="ttl">加一段到配方 ${ri+1} · 可多选（= 从这几个文件夹里任意挑一个）</div>
+    <div class="pick-list">
+      <span class="pc sp" data-cat="*" onclick="pickToggle(this)">🎲 全部随机</span>
+      ${cats.map(c=>`<span class="pc" data-cat="${esc(c.name)}" onclick="pickToggle(this)">${esc(c.name)}<span class="n">${c.count}</span></span>`).join('')}
+    </div>
+    <div class="ai-row" style="margin-top:10px">
+      <button class="btn primary sm" onclick="catPickCommit()">加入这一段</button>
+      <button class="btn ghost sm" onclick="closeCatPick()">取消</button>
+    </div>`;
+  el.style.display='block';
+  el.style.left='0px'; el.style.top='0px';
+  const r=e.currentTarget.getBoundingClientRect();
+  el.style.left=Math.max(8,Math.min(r.left, innerWidth-el.offsetWidth-12))+'px';
+  el.style.top=Math.max(8,Math.min(r.bottom+6, innerHeight-el.offsetHeight-10))+'px';
+}
+function pickToggle(el){ el.classList.toggle('on'); }
+function catPickCommit(){
+  const el=$('#catPick'); if(!el) return;
+  const ri=parseInt(el.dataset.r,10);
+  const sel=[...el.querySelectorAll('.pick-list .pc.on')].map(x=>x.dataset.cat);
+  if(!sel.length){ toast('先点选一个或多个类别','info'); return; }
+  if(!ED.recipes[ri]) return;
+  ED.recipes[ri].push(sel);
+  closeCatPick(); markRuleDirty(); renderRuleEdit();
+}
+function closeCatPick(){ const el=$('#catPick'); if(el) el.style.display='none'; }
+document.addEventListener('click',e=>{
+  const el=$('#catPick');
+  if(el && el.style.display==='block' && !el.contains(e.target)) el.style.display='none';
+});
+
+/* ---------- 类别托盘 + 拖拽 ---------- */
+/* 配方里的特殊标签 → 界面上好认的名字 */
+function slotLabel(n){
+  if(n==='*') return '🎲 全部随机';
+  return n;
+}
+function renderPalette(){
+  const el=$('#palette'); if(!el) return;
+  const cats=(STATE.detail&&STATE.detail.categories)||[];
+  const drag=(cat,label,cls)=>`<span class="pc ${cls||''}" draggable="true" data-cat="${esc(cat)}"
+      ondragstart="startCatDrag(event,this.dataset.cat)" title="拖进任意配方 = 加一段">${label}</span>`;
+  el.innerHTML=`<span style="font-size:12px;color:var(--muted);align-self:center;margin-right:2px">类别托盘</span>`
+    + drag('*','🎲 全部随机','sp')
+    + cats.map(c=>`<span class="pc" draggable="true" data-cat="${esc(c.name)}"
+        ondragstart="startCatDrag(event,this.dataset.cat)"
+        title="拖进任意配方 = 加一段">${esc(c.name)}<span class="n">${c.count}</span></span>`).join('')
+    + `<span style="font-size:11.5px;color:var(--muted);align-self:center;margin-left:6px">← 拖进配方</span>`;
+}
+
+/* ---------- 自动规则 + 上限估算（移植自 mix-studio app/rules.py） ---------- */
+/* 有效段数：auto 模式用 ED.slots，没设就用配方长度或 6 */
+function effectiveSlots(){
+  if(ED.slots!=null) return ED.slots;
+  const lens=slotsRecipeLens();
+  return lens[0]||6;
+}
+
+/* 自动推导镜头顺序：开头组 → 主体(文件数降序) → 收尾组，截断到段数 */
+function autoRecipeOrder(){
+  const cats=(STATE.detail?.categories||[]).slice().sort((a,b)=>b.count-a.count);
+  if(!cats.length) return [];
+  const names=cats.map(c=>c.name);
+  const opening=ED.auto.opening||'';
+  const ending=ED.auto.ending||'';
+  const head=(opening && names.includes(opening))?opening:names[0];
+  const order=[head];
+  names.forEach(g=>{ if(g!==head && g!==ending) order.push(g); });
+  if(ending && names.includes(ending) && !order.includes(ending)) order.push(ending);
+  return order.slice(0, Math.max(1, effectiveSlots()));
+}
+
+/* 可量化上限：口径① 零复用（每文件只用一次）/ 口径② 变体放大（缩放×起始×镜像 V=18） */
+function estimateOutput(){
+  const cats=(STATE.detail?.categories||[]).slice();
+  const groups={}; cats.forEach(c=>groups[c.name]=c.count);
+  const total=cats.reduce((a,c)=>a+c.count,0);
+  const slots=effectiveSlots();
+  const avail={...groups};
+  let strict=0;
+  while(true){
+    const cand=Object.keys(avail).filter(g=>avail[g]>0).sort((a,b)=>avail[b]-avail[a]);
+    if(cand.length<slots) break;
+    cand.slice(0,slots).forEach(g=>{ avail[g]--; });
+    strict++;
+  }
+  const V=18; // zoom 3 × start 3 × mirror 2（默认变体因子）
+  const amplified=(slots>0)?Math.floor(total*V/slots):0;
+  return {total, groups:cats.length, slots, V, strict, amplified};
+}
+
+/* auto 模式面板：极简 —— 只「最大可产出」+「开头/结尾」，其他不显示 */
+function autoBody(){
+  const cats=(STATE.detail?.categories||[]).slice().sort((a,b)=>b.count-a.count);
+  const e=estimateOutput();
+  const done=STATE.detail?.history_count||0;
+  const pct=e.amplified>0?Math.min(100,done/e.amplified*100):0;
+  const opts=cats.map(c=>`<option value="${esc(c.name)}" ${c.name===ED.auto.opening?'selected':''}>${esc(c.name)}（${c.count}）</option>`).join('');
+  const endOpts=cats.map(c=>`<option value="${esc(c.name)}" ${c.name===ED.auto.ending?'selected':''}>${esc(c.name)}（${c.count}）</option>`).join('');
+  return `
+    <div class="auto-sort">
+      <div class="as-head"><span>⚡ 自动规则</span><span class="tag">不用写配方</span></div>
+      <div class="hint" style="margin:6px 0 0">出片自动按「开头组 → 主体(文件数降序) → 收尾组」排镜头，无需手写配方。</div>
+      <div class="est-grid">
+        <div class="est-item acc"><div class="k">最大可产出</div><div class="v">${e.amplified}<small> 条（变体放大）</small></div></div>
+        <div class="est-item"><div class="k">零复用（最严）</div><div class="v">${e.strict}<small> 条</small></div></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-head"><span>产出进度</span><span>已产出 <b>${done}</b> / ${e.amplified} 条（${pct.toFixed(1)}%）</span></div>
+        <div class="progress"><div class="progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      </div>
+      <div class="as-row" style="margin-top:14px">
+        <div class="field">
+          <label>开头组（留空 = 文件数最多）</label>
+          <select id="asOpening" onchange="autoSet('opening',this.value)"><option value="">自动（文件数最多）</option>${opts}</select>
+        </div>
+        <div class="field">
+          <label>收尾组（可选）</label>
+          <select id="asEnding" onchange="autoSet('ending',this.value)"><option value="">不指定</option>${endOpts}</select>
+        </div>
+      </div>
+    </div>`;
+}
+
+function autoSet(k,v){ ED.auto[k]=v; markRuleDirty(); }
+
+let dragCat=null;
+function startCatDrag(e,name){ dragCat=name; drag={r:null,i:null}; try{e.dataTransfer.effectAllowed='copy';}catch(_){} }
+function startSlotDrag(e,r,i){ dragCat=null; drag={r,i}; try{e.dataTransfer.effectAllowed='move';}catch(_){} }
+function rowHot(e,el,on){ e.preventDefault(); el.classList.toggle('drop-hot',!!on); }
+function trashHot(e,el,on){ e.preventDefault(); e.stopPropagation(); el.classList.toggle('hot',!!on); }
+function markRuleDirty(){ const el=$('#ruleDirty'); if(el) el.style.display=''; }
+
+function dropSlot(e,r,to){
+  e.preventDefault(); e.stopPropagation();
+  if(dragCat){                                  // 从托盘拖入 → 插到这一段之前
+    ED.recipes[r].splice(to,0,[dragCat]); dragCat=null;
+    markRuleDirty(); renderRuleEdit(); return;
+  }
+  if(drag.r==null) return;
+  const [item]=ED.recipes[drag.r].splice(drag.i,1);
+  let at=to; if(drag.r===r && drag.i<to) at=to-1;
+  ED.recipes[r].splice(at,0,item);
+  drag={r:null,i:null}; markRuleDirty(); renderRuleEdit();
+}
+function dropRow(e,r){
+  e.preventDefault(); e.stopPropagation();
+  const row=e.currentTarget; if(row) row.classList.remove('drop-hot');
+  if(dragCat){ ED.recipes[r].push([dragCat]); dragCat=null; markRuleDirty(); renderRuleEdit(); return; }
+  if(drag.r==null) return;
+  const [item]=ED.recipes[drag.r].splice(drag.i,1);
+  ED.recipes[r].push(item);
+  drag={r:null,i:null}; markRuleDirty(); renderRuleEdit();
+}
+function dropTrash(e,r){
+  e.preventDefault(); e.stopPropagation();
+  const t=e.currentTarget; if(t) t.classList.remove('hot');
+  if(drag.r==null) return;
+  ED.recipes[drag.r].splice(drag.i,1);
+  if(!ED.recipes[drag.r].length && ED.recipes.length>1) ED.recipes.splice(drag.r,1);
+  drag={r:null,i:null}; markRuleDirty(); renderRuleEdit();
+}
+function removeSlot(r,i){ ED.recipes[r].splice(i,1); if(!ED.recipes[r].length&&ED.recipes.length>1) ED.recipes.splice(r,1); markRuleDirty(); renderRuleEdit(); }
+function newRecipe(){
+  const cats=(STATE.detail.categories||[]).map(c=>c.name);
+  ED.recipes=[cats.slice(0,6).map(c=>[c])];
+  markRuleDirty(); renderRuleEdit();
+}
+function addRecipe(){
+  const r0=ED.recipes[0]||[];
+  ED.recipes.push(JSON.parse(JSON.stringify(r0)));
+  markRuleDirty(); renderRuleEdit();
+}
+function delRecipe(i){ ED.recipes.splice(i,1); markRuleDirty(); renderRuleEdit(); }
+
+function dropSlotGroup(to){
+  if(drag.r==null) return;
+  const [item]=ED.slotgroups.splice(drag.i,1);
+  let at=to; if(drag.i<to) at=to-1;
+  ED.slotgroups.splice(at,0,item);
+  drag={r:null,i:null};
+  renderRuleEdit();
+}
+function removeSlotGroup(i){ ED.slotgroups.splice(i,1); renderRuleEdit(); }
+function addSlotGroupFolder(){
+  const v=$('#sgPath').value.trim();
+  if(!v) return;
+  ED.slotgroups.push(v); $('#sgPath').value='';
+  renderRuleEdit();
+}
+
+/* 两个保存入口，各管各的 —— 用户要求「保存规则只对规则本身生效」：
+     saveRules('pool') → 只写 pool_dirs（素材池）
+     saveRules('rule') → 只写镜头配方 / 排他类别 / 每条段数
+     BGM 规则已迁到独立「BGM 库」页，统一走 /api/bgm/save。 */
+async function saveRules(scope){
+  const fields={};
+  if(scope==='pool'){
+    fields.pool_dirs = ED.pool.length? ED.pool : null;
+  } else {
+    fields.exclusive_adjacent = ED.exclusive.length? ED.exclusive : null;
+    if(ED.ruleMode==='auto'){
+      // 自动规则：把自动排序结果写成配方 + rule_mode='auto'；手写配方 ED.recipes 原样保留
+      const order=autoRecipeOrder();
+      fields.shot_recipe = order.length ? order.map(g=>[g]) : null;
+      fields.shot_recipes = null;
+      fields.slot_groups = null;
+      fields.slots = null;                     // 按自动顺序长度出片
+      fields.rule_mode = 'auto';
+      fields.auto_opening = ED.auto.opening || null;
+      fields.auto_ending = ED.auto.ending || null;
+    } else {
+      fields.slots = ED.slots;                 // null = 自动（删字段），数字 = 手动指定
+      // recipe 模式不写这个字段（读的时候默认就是 recipe），保持 spec 干净
+      fields.rule_mode = ED.ruleMode==='random' ? 'random' : null;
+      fields.auto_opening = null;
+      fields.auto_ending = null;
+      if(ED.mode==='slotgroups'){
+        fields.slot_groups = ED.slotgroups.length? ED.slotgroups : null;
+        fields.shot_recipes = null; fields.shot_recipe = null;
+      } else {
+        const recipes=ED.recipes.map(r=>r.map(slot=>slot));
+        if(recipes.length===0){ fields.shot_recipe=null; fields.shot_recipes=null; }
+        else if(recipes.length===1){ fields.shot_recipe=recipes[0]; fields.shot_recipes=null; }
+        else { fields.shot_recipes=recipes; fields.shot_recipe=null; }
+        fields.slot_groups = null;
+      }
+    }
+  }
+  const what={pool:'素材池', rule:'规则'}[scope]||'改动';
+  try{
+    const r=await jpost('/api/stores/'+STATE.key+'/spec',{fields});
+    toast(`${what}已保存（备份 ${r.backup}）`,'ok');
+    const dirty=$('#ruleDirty'); if(scope==='rule'&&dirty) dirty.style.display='none';
+    loadDetail(STATE.key);
+  }catch(e){ toast('保存失败：'+e.message,'err'); }
+}
+
+/* 素材池改完就存，不用点按钮（BGM 规则已迁到独立页，需显式保存）。
+   ⚠ 只写自己那块的字段，并且**不整体重渲染**（否则会冲掉正在编辑的配方）。 */
+let _saveT=null;
+function autoSave(scope){ clearTimeout(_saveT); _saveT=setTimeout(()=>doAutoSave(scope),350); }
+async function doAutoSave(scope){
+  if(!STATE.key || scope!=='pool') return;
+  const fields={pool_dirs: ED.pool.length? ED.pool : null};
+  try{
+    await jpost('/api/stores/'+STATE.key+'/spec',{fields});
+    STATE.detail=await jget('/api/stores/'+STATE.key);
+    renderPoolEdit();
+    toast('素材池已自动保存','ok');
+  }catch(e){ toast('自动保存失败：'+e.message,'err'); }
+}
+
+/* ---------- 历史版本（列备份 → 点一个回退） ---------- */
+async function showBackups(){
+  const el=$('#bakOut'); if(!el) return;
+  if(el.dataset.open==='1'){ el.innerHTML=''; el.dataset.open='0'; return; }
+  el.innerHTML='<div class="hint">读取历史版本…</div>';
+  let d;
+  try{ d=await jget('/api/stores/'+STATE.key+'/backups'); }
+  catch(e){ el.innerHTML=`<div class="hint" style="color:var(--red)">读取失败：${esc(e.message)}</div>`; return; }
+  const rows=(d.backups||[]).map(b=>{
+    const m=b.name.match(/\.bak-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/);
+    const t=m?`${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`:b.name;
+    const ch=(b.changed&&b.changed.length)?b.changed.join('、'):'（与现在一致）';
+    return `<div class="bak-row"><span class="t">${esc(t)}</span>
+      <span class="w">与现在不同：${esc(ch)}</span>
+      <button class="btn ghost sm" onclick="doRestore('${esc(b.name)}')">回退到这版</button></div>`;
+  }).join('') || '<div class="bak-row"><span class="w">还没有历史版本（每次保存会自动留一份）</span></div>';
+  el.innerHTML=`<div class="bak-list">${rows}</div>
+    <div class="hint">回退会先把「现在这版」也备份一份，所以回退本身也能再退回来。</div>`;
+  el.dataset.open='1';
+}
+async function doRestore(name){
+  if(!confirm('确定回退到这个版本？\n' + name)) return;
+  try{
+    const r=await jpost('/api/stores/'+STATE.key+'/restore',{name});
+    toast('已回退（回退前的版本已备份为 '+r.backup+'）','ok');
+    const el=$('#bakOut'); if(el){ el.innerHTML=''; el.dataset.open='0'; }
+    loadDetail(STATE.key);
+  }catch(e){ toast('回退失败：'+e.message,'err'); }
+}
+
+/* ---------- AI 自动部署规则（DeepSeek，Key 只存本机） ---------- */
+async function loadAiBox(){
+  const el=$('#aiBox'); if(!el) return;
+  let c={has_key:false, key_hint:'', model:'deepseek-chat'};
+  try{ c=await jget('/api/ai/config'); }catch(e){}
+  el.innerHTML=`
+    <textarea id="aiPrompt" placeholder="用一句话说清你要的规则。例如：按上菜顺序排一套 6 段配方，开头必须是夹菜，结尾浇汤，中间别连着两个同类的"></textarea>
+    <div class="ai-row">
+      <button class="btn primary sm" onclick="aiDeploy()">🤖 AI 部署（直接写入）</button>
+      <span class="hint" style="margin:0">${c.has_key?`已配置 Key（${esc(c.key_hint)}）`:'⚠ 还没填 API Key'}</span>
+    </div>
+    <div class="ai-row">
+      <input type="password" id="aiKey" placeholder="${c.has_key?'已保存，留空则不修改':'粘贴 DeepSeek API Key（只存本机 projects/_ai.conf，不进 git）'}">
+      <button class="btn ghost sm" onclick="aiSaveKey()">保存 Key</button>
+    </div>
+    <div id="aiOut"></div>`;
+}
+async function aiSaveKey(){
+  const v=($('#aiKey').value||'').trim();
+  if(!v){ toast('先粘贴 Key','info'); return; }
+  try{
+    await jpost('/api/ai/config',{api_key:v});
+    toast('Key 已保存（本机，不进版本库）','ok');
+    loadAiBox();
+  }catch(e){ toast('保存失败：'+e.message,'err'); }
+}
+async function aiDeploy(){
+  const p=($('#aiPrompt').value||'').trim();
+  if(!p){ toast('先写一句要求，例如「按上菜顺序排一套 6 段配方」','info'); return; }
+  const out=$('#aiOut');
+  if(out) out.innerHTML='<div class="hint">AI 思考中…（一般 3~10 秒）</div>';
+  try{
+    const r=await jpost('/api/stores/'+STATE.key+'/ai_rules',{prompt:p});
+    toast('AI 已部署：'+(r.note||'配方已更新'),'ok');
+    await loadDetail(STATE.key);
+    const o=$('#aiOut');
+    if(o) o.innerHTML=`<div class="hint" style="color:var(--green)">✅ 已写入 ${r.shot_recipes.length} 套配方`+
+      `${r.slots?`，每条 ${r.slots} 段`:''}。不满意可以点上面「🕘 历史版本」回退。</div>`;
+  }catch(e){
+    if(out) out.innerHTML=`<div class="hint" style="color:var(--red)">${esc(e.message)}</div>`;
+  }
+}
+
+/* ---------- 干跑 / 生成 ---------- */
+function toast(msg,type){
+  const t=document.createElement('div');
+  t.className='toast '+(type||'ok');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},2800);
+}
+function setGenStatus(html,cls){
+  const el=$('#genStatus');
+  if(el){ el.className='status-banner '+(cls||''); el.innerHTML=html; el.scrollIntoView({block:'nearest'}); }
+}
+function genElapsed(){
+  if(!STATE.genStart) return '0s';
+  const s=Math.floor((Date.now()-STATE.genStart)/1000);
+  return s<60? s+'秒' : Math.floor(s/60)+'分'+(s%60)+'秒';
+}
+function collectReq(){
+  const g=v=>$(v).value.trim();
+  const num=(v,d)=>{const x=parseFloat(g(v));return isNaN(x)?d:x;};
+  const sp=num('#fSpeed',1.0);
+  const mode=document.querySelector('input[name=spmode]:checked').value;
+  return {
+    count:Math.max(1,Math.round(num('#fCount',30))),
+    seed:g('#fSeed')===''?null:Math.round(num('#fSeed',0)),
+    title_offset:g('#fOffset')===''?null:Math.round(num('#fOffset',0)),
+    video_speed: mode==='video'?sp:1.0,
+    speed: mode==='both'?sp:1.0,
+  };
+}
+
+async function doDryRun(){
+  const req=collectReq();
+  const out=$('#runOut');
+  out.innerHTML='<div class="out">干跑中…</div>';
+  try{
+    const r=await jpost('/api/stores/'+STATE.key+'/dry_run',req);
+    renderDryRun(r);
+  }catch(e){ out.innerHTML=`<div class="out" style="color:#f88">❌ ${esc(e.message)}</div>`; }
+}
+
+function renderDryRun(r){
+  const m=r.result.metrics||{};
+  const hasExcl=(m.exclusive||[]).length>0;
+  const item=(label,val,ok,info)=>{
+    const cls=ok===null?'info':(ok?'pass':'fail');
+    return `<div class="metric ${cls}"><div class="m">${label}</div>
+      <div class="val">${esc(val)}</div><div class="tag">${esc(info||'')}</div></div>`;
+  };
+  const rows=(r.result.combos||[]).map((c,i)=>{
+    const segs=c.map(n=>{
+      const cat=catOf(n);
+      const cls=cat==='夹菜'?'s-open':(cat.includes('上桌')?'s-excl':'');
+      return `<span class="seg ${cls}">${esc(cat)}</span>`;
+    }).join('');
+    return `<tr><td class="num">${i+1}</td><td>${segs}</td>
+      <td class="mono">${esc((r.result.bgms||[])[i]||'')}</td>
+      <td>${esc((r.result.titles||[])[i]||'')}</td></tr>`;
+  }).join('');
+  const metrics=
+    item('片内相邻同类', m.adj_in, m.adj_in===0, '目标 0')+
+    item('片内同文件复用', m.dup_file_in+'/'+m.n, m.dup_file_in===0, '目标 0')+
+    item('相邻边界同类', m.edge, m.edge===0, '目标 0')+
+    item('片间同文件重叠', m.fov, m.fov===0, '目标 0')+
+    (hasExcl?item('排他类别相邻', m.excl, m.excl===0, (m.exclusive||[]).join('、')):'')+
+    item('相邻同位置同类', m.pos, null, '参考（越低越好）')+
+    item('片内重复类别', m.dup_in+'/'+m.n, null, '允许项')+
+    item('片内平均不同类别', m.avg_cat+'/条', null, '参考');
+  $('#runOut').innerHTML=`
+    <div class="metrics" style="margin-top:14px">${metrics}</div>
+    <div class="hint">种子 ${r.seed} · 起点 ${r.title_offset} · 共 ${r.result.count} 条 × ${r.result.slots} 段</div>
+    <div class="out">${esc(r.output)}</div>
+    <div class="hint">方案明细：</div>
+    <table style="margin-top:6px"><tr><th>#</th><th>镜头序列</th><th>BGM</th><th>文案</th></tr>${rows}</table>`;
+}
+
+function setGenBusy(busy){
+  const b1=$('#btnGen'), b2=$('#btnForce');
+  if(!b1) return;
+  if(busy){
+    b1.disabled=true; if(b2)b2.disabled=true;
+    b1.innerHTML='<span class="spin"></span> 生成中…';
+  }else{
+    b1.disabled=false; if(b2)b2.disabled=false;
+    b1.textContent='② 正式生成';
+  }
+}
+async function doGenerate(force){
+  const out=$('#runOut');
+  out.innerHTML='';
+  setGenStatus('<span class="spin"></span> 正在提交生成任务…','running');
+  setGenBusy(true);
+  const req=collectReq(); req.force=!!force;
+  try{
+    const r=await jpost('/api/stores/'+STATE.key+'/generate',req);
+    STATE.genStart=Date.now();
+    setGenStatus('<span class="spin"></span> 生成中，请稍候…已用 '+genElapsed(),'running');
+    pollTask(r.task_id,out);
+  }catch(e){
+    const msg=e.message||'';
+    const cap=msg.indexOf('剪映正在运行')>=0;
+    setGenStatus('❌ '+(cap?'剪映正在运行，请先 ⌘Q 退出；或点「⚠ 强制运行」跳过检测。':esc(msg)),'fail');
+    setGenBusy(false);
+  }
+}
+
+async function pollTask(id,out){
+  let t;
+  try{ t=await jget('/api/tasks/'+id); }
+  catch(e){
+    setGenStatus('❌ 获取任务状态失败：'+esc(e.message),'fail');
+    setGenBusy(false);
+    return;
+  }
+  if(t.status==='running'){
+    setGenStatus('<span class="spin"></span> 生成中，请稍候…已用 '+genElapsed()+'（30 条约 6 分钟，可离开页面，回来刷新也能看到）','running');
+    out.innerHTML=`<div class="out">${esc(t.output||'')}\n⏳ 生成中…</div>`;
+    setTimeout(()=>pollTask(id,out),2000);
+    return;
+  }
+  setGenBusy(false);
+  if(t.status==='error'){
+    setGenStatus('❌ 生成失败：'+esc(t.error),'fail');
+    out.innerHTML=`<div class="out" style="color:#f88">${esc(t.error)}</div>`;
+    return;
+  }
+  const r=t.result||{};
+  setGenStatus('✅ 完成！用时 '+genElapsed()+' · '+esc(r.name||'')+' · '+esc(r.count||'')+' 条','done');
+  out.innerHTML=`
+    <div class="metrics" style="margin-top:14px">
+      <div class="metric pass"><div class="m">草稿名</div><div class="val" style="font-size:15px">${esc(r.name||'')}</div></div>
+      <div class="metric pass"><div class="m">草稿 ID</div><div class="val" style="font-size:13px">${esc(r.draft_id||'')}</div></div>
+      <div class="metric info"><div class="m">成片条数</div><div class="val">${esc(r.count||'')}</div></div>
+      <div class="metric info"><div class="m">总时长</div><div class="val">${r.duration_us?((r.duration_us/1e6).toFixed(1)+'s'):'—'}</div></div>
+    </div>
+    <div class="out">${esc(t.output||'')}</div>
+    <div class="hint">✅ 已完成。打开剪映即可在草稿列表看到。</div>`;
+  toast('生成完成：'+r.name,'ok');
+  loadStatus(); refreshAfterGen();
+}
+
+/* 生成完成后只刷新两个计数，**绝不整体重渲染** ——
+   否则用户刚填的条数/种子/倍速、刚拖好的配方会被打回保存值。 */
+async function refreshAfterGen(){
+  try{
+    const d=await jget('/api/stores/'+STATE.key);
+    STATE.detail=d;
+    const made=$('#cardMade'), next=$('#cardNext');
+    if(made) made.innerHTML=`${d.history_count}<small> 条</small>`;
+    if(next) next.innerHTML=`${d.next_offset+1}<small> 号</small>`;
+    const off=$('#fOffset'); if(off&&off.value!=='') off.value=d.next_offset;  // 起点往前推，不退回旧值
+  }catch(e){}
+}
+
+/* ---------- 草稿 / 孤儿 ---------- */
+async function loadDrafts(){
+  const d=await jget('/api/drafts');
+  const rows=d.drafts.slice().reverse().slice(0,40).map(e=>{
+    const dur=e.duration_us?((e.duration_us/1e6).toFixed(1)+'s'):'—';
+    return `<tr><td class="mono">${esc(e.draft_id||'')}</td><td>${esc(e.name||'')}</td><td>${dur}</td></tr>`;
+  }).join('')||'<tr><td colspan="3" class="empty">无草稿</td></tr>';
+  $('#draftPanel').innerHTML=`<table><tr><th>草稿 ID</th><th>名称</th><th>时长</th></tr>${rows}</table>`;
+}
+async function showDrafts(){
+  $('#tabDrafts').classList.add('active');$('#tabOrphans').classList.remove('active');
+  loadDrafts();
+}
+async function showOrphans(){
+  $('#tabOrphans').classList.add('active');$('#tabDrafts').classList.remove('active');
+  const d=await jget('/api/orphans');
+  const rows=d.orphans.map(o=>{
+    const dur=o.duration_us?((o.duration_us/1e6).toFixed(1)+'s'):'—';
+    return `<tr><td class="mono">${esc(o.folder_name)}</td><td>${dur}</td>
+      <td><button class="btn ghost sm" onclick="reg('${esc(o.folder_name)}')">补注册</button></td></tr>`;
+  }).join('')||'<tr><td colspan="3" class="empty">无孤儿草稿 ✅</td></tr>';
+  $('#draftPanel').innerHTML=`
+    <div class="hint" style="margin-bottom:10px">这些文件夹在磁盘存在但索引里没有（被剪映剔除/漏注册）。可一键补注册，或去重修复。</div>
+    <table><tr><th>文件夹</th><th>时长</th><th>操作</th></tr>${rows}</table>
+    <button class="btn ghost" style="margin-top:12px" onclick="fixIndex('dedup')">去重修复索引</button>`;
+}
+async function reg(folder){
+  try{
+    await jpost('/api/register',{folder:folder,name:''});
+    toast('已补注册：'+folder,'ok');
+    showOrphans(); loadStatus();
+  }catch(e){ toast('补注册失败：'+e.message,'err'); }
+}
+async function fixIndex(action){
+  try{
+    const r=await jpost('/api/fix_index',{action:action});
+    toast('索引修复完成','ok');
+    loadStatus();
+  }catch(e){ toast('修复失败：'+e.message,'err'); }
+}
+
+function applySidebar(collapsed){
+  const side=$('#sidebar'), main=$('.main'), btn=$('#sideToggle');
+  if(!side) return;
+  side.classList.toggle('collapsed', collapsed);
+  if(main) main.style.marginLeft = collapsed ? '56px' : '220px';
+  if(btn) btn.textContent = collapsed ? '»' : '«';
+  try{ localStorage.setItem('sideCollapsed', collapsed?'1':'0'); }catch(e){}
+}
+function toggleSidebar(){ applySidebar(!$('#sidebar').classList.contains('collapsed')); }
+
+loadStatus();
+try{ if(localStorage.getItem('sideCollapsed')==='1') applySidebar(true); }catch(e){}
+/* #bgm=<key> / #huazi / #copy / #copy-pick / #store=<key> 直接进对应页 */
+(async()=>{
+  // 页面一加载就取消上一次「关页面」登记的待退出倒计时 → 刷新页面不会关掉控制台
+  try{ await jpost('/api/keepalive',{}); }catch(e){}
+  const h=location.hash;
+  const isCopy=(h==='#copy'||h==='#copy-pick');
+  const mStore=h.match(/^#store=(.+)$/);
+  const mBgm=h.match(/^#bgm(?:=(.+))?$/);
+  await loadStores(h!=='#huazi' && !isCopy && !mStore && !mBgm);
+  if(mBgm) showBgm(mBgm[1]?decodeURIComponent(mBgm[1]):null);
+  else if(h==='#huazi') showHuazi();
+  else if(isCopy) showCopy();
+  else if(mStore){
+    const k=decodeURIComponent(mStore[1]);
+    const list=(STATE.stores&&STATE.stores.stores)||[];   // ⚠ STATE.stores 是对象
+    if(list.some(s=>s.key===k)) selectStore(k);
+    else history.replaceState(null,'',location.pathname+location.search);
+  }
+})();
+setInterval(loadStatus,8000);
+
+/* ---------- 关闭程序 ---------- */
+async function shutdownApp(){
+  const btn=$('#btnQuitApp');
+  if(btn) btn.disabled=true;
+  setGenStatus('<span class="spin"></span> 正在关闭控制台程序…','running');
+  toast('正在关闭控制台程序…','info');
+  try{ await jpost('/api/shutdown',{}); }catch(e){}
+
+  // 真的关掉了吗？轮询确认端口释放（最多 ~9 秒）
+  for(let i=0;i<18;i++){
+    await new Promise(r=>setTimeout(r,500));
+    let still=false;
+    try{ await jget('/api/status'); still=true; }catch(e){ still=false; }
+    if(!still){
+      if(btn) btn.disabled=false;
+      setGenStatus('✅ 程序已关闭、端口已释放，可以关掉本页面了。','done');
+      toast('控制台已关闭，端口已释放','ok');
+      return;
+    }
+  }
+  if(btn) btn.disabled=false;
+  setGenStatus('⚠ 已发出关闭指令，但服务仍有响应。可再点一次「⏻ 关闭程序」，或双击「关闭控制台.command」强制结束。','fail');
+  toast('⚠ 端口可能仍被占用','err');
+}
+/* 关页面是否同时退出程序（默认否：程序常驻，下次双击图标直接打开） */
+const QUIT_KEY='mixconsole.quitOnClose';
+function quitOnClose(){ try{ return localStorage.getItem(QUIT_KEY)==='1'; }catch(e){ return false; } }
+function setQuitOnClose(v){
+  try{ localStorage.setItem(QUIT_KEY, v?'1':'0'); }catch(e){}
+  toast(v?'已开启：关页面时同时退出程序':'已关闭：程序保持后台常驻','info');
+}
+function beaconShutdown(){
+  // ⚠ 必须带 soft=1：刷新页面同样会触发 beforeunload，硬退的话按一下 F5
+  //   就把控制台关了。soft 只登记 12 秒倒计时，新页面加载的 keepalive 会取消它。
+  if(quitOnClose()){ try{ navigator.sendBeacon('/api/shutdown?soft=1'); }catch(e){} }
+}
+window.addEventListener('beforeunload', beaconShutdown);
+window.addEventListener('pagehide', beaconShutdown);
+(function(){ const cb=$('#cbQuit'); if(cb) cb.checked=quitOnClose(); })();
+
+/* ══════════════════ 花字库（启用 / 停用 → 保存） ══════════════════ */
+const HZ={rows:[], fonts:[], fav:new Set(), fvFonts:new Set(),
+          origFav:new Set(), origFonts:new Set(),
+          img:new Set(), q:'', cat:'', vip:'', onlyFav:false, onlyImg:false, limit:120};
+const HZ_PAGE=120;
+
+async function showHuazi(){
+  STATE.key=null;
+  try{ history.replaceState(null,'','#huazi'); }catch(e){}
+  document.querySelectorAll('.store').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $('#navHuazi').classList.add('active');
+  $('#pageTitle').textContent='花字库 · 启用设置';
+  $('#btnDelStore').style.display='none';
+  const csb=$('#cpSave'); if(csb) csb.classList.remove('show');
+  const bsb=$('#bgmSave'); if(bsb) bsb.classList.remove('show');
+  bgmStopPlay();
+  $('#content').innerHTML='<div class="empty">正在加载花字库…</div>';
+  try{
+    const d=await jget('/api/huazi');
+    HZ.rows=d.rows||[];
+    HZ.img=new Set(d.with_preview||[]);
+    HZ.origFav=new Set(HZ.rows.filter(r=>r.fav).map(r=>r.id));
+    HZ.fav=new Set(HZ.origFav);
+    HZ.fonts=d.fonts||[];
+    HZ.origFonts=new Set(HZ.fonts);
+    HZ.fvFonts=new Set(HZ.fonts);
+    HZ.q=''; HZ.cat=''; HZ.vip=''; HZ.onlyFav=false; HZ.onlyImg=false; HZ.limit=HZ_PAGE;
+    renderHuazi();
+  }catch(e){
+    $('#content').innerHTML='<div class="empty">加载失败：'+esc(e.message)+'</div>';
+  }
+}
+
+function hzHue(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h%360;}
+
+function hzCard(r){
+  const on=HZ.fav.has(r.id), hue=hzHue(r.title), hasImg=!!(r.img||HZ.img.has(r.id));
+  const th=hasImg
+    ? '<img loading="lazy" src="/api/huazi/preview/'+r.id+'" alt="">'
+    : '<div class="ph" style="background:linear-gradient(145deg,hsl('+hue+' 66% 90%),hsl('+((hue+38)%360)+' 70% 80%));color:hsl('+hue+' 58% 34%)">'+esc(r.title.slice(0,1))+'</div>';
+  const tags=(r.vip?'<span class="hz-tag vip">VIP</span>':'')
+    +(r.cat&&r.cat!=='未分类'?'<span class="hz-tag cat">'+esc(r.cat)+'</span>':'')
+    +(hasImg?'<span class="hz-tag img">有图</span>':'');
+  return '<div class="hz-card'+(on?' on':'')+'" data-id="'+r.id+'" onclick="hzToggle(\''+r.id+'\')">'
+    +'<div class="hz-sw">'+(on?'✓':'')+'</div>'
+    +'<div class="hz-tb">'+th+'</div>'
+    +'<div class="hz-md"><div class="t">'+esc(r.title)+'</div>'
+    +'<div class="i">'+r.id+'</div><div class="hz-tags">'+tags+'</div></div></div>';
+}
+
+function hzPass(r){
+  if(HZ.vip==='vip'&&!r.vip) return false;
+  if(HZ.vip==='free'&&r.vip) return false;
+  if(HZ.onlyImg&&!(r.img||HZ.img.has(r.id))) return false;
+  if(HZ.onlyFav&&!HZ.fav.has(r.id)) return false;
+  if(HZ.cat&&r.cat!==HZ.cat) return false;
+  if(HZ.q){
+    const q=HZ.q.toLowerCase();
+    if(!(r.title.toLowerCase().indexOf(q)>=0||r.id.indexOf(q)>=0)) return false;
+  }
+  return true;
+}
+
+function hzRenderGrid(){
+  const shown=HZ.rows.filter(hzPass), g=$('#hzGrid');
+  if(g) g.innerHTML=shown.slice(0,HZ.limit).map(hzCard).join('')||'<div class="empty">没有匹配的花字</div>';
+  const m=$('#hzMore');
+  if(m){ m.style.display=shown.length>HZ.limit?'block':'none';
+    m.textContent='显示更多（已显示 '+Math.min(HZ.limit,shown.length)+' / '+shown.length+'）'; }
+  const c=$('#hzCount'); if(c) c.textContent='匹配 '+shown.length+' 条';
+}
+
+function hzRenderFav(){
+  const el=$('#hzFavGrid'); if(!el) return;
+  const on=HZ.rows.filter(r=>HZ.fav.has(r.id));
+  el.innerHTML=on.map(hzCard).join('')||'<div class="empty">当前没有启用任何花字</div>';
+  const c=$('#hzFavCount'); if(c) c.textContent=HZ.fav.size;
+}
+
+function hzRenderFonts(){
+  const el=$('#hzFonts'); if(!el) return;
+  el.innerHTML=HZ.fonts.map(f=>'<span class="font-pill'+(HZ.fvFonts.has(f)?' on':'')+'" data-f="'+esc(f)+'">'+esc(f)+'</span>').join('')
+    ||'<span class="empty">字体池为空</span>';
+  el.querySelectorAll('.font-pill').forEach(p=>{ p.onclick=()=>hzToggleFont(p.dataset.f); });
+}
+
+function renderHuazi(){
+  const rows=HZ.rows;
+  const cats=[...new Set(rows.map(r=>r.cat))].filter(c=>c&&c!=='未分类').sort();
+  const catOpts=cats.map(c=>'<option value="'+esc(c)+'"'+(HZ.cat===c?' selected':'')+'>'+esc(c)+'（'+rows.filter(r=>r.cat===c).length+'）</option>').join('');
+  $('#content').innerHTML=
+  '<section><h2>已启用 <span id="hzFavCount">'+HZ.fav.size+'</span> 个花字'
+   +'<span class="hint">出片时从这里随机挑 1 个用在标题上</span></h2>'
+   +'<div class="hz-grid" id="hzFavGrid"></div></section>'
+  +'<section class="hz-section"><h2>标题字体池 '
+   +'<span class="hint">与花字叠加使用；点击切换启用</span></h2><div id="hzFonts"></div></section>'
+  +'<section class="hz-section"><h2>全部花字 '
+   +'<span class="hint">共 '+rows.length+' 条 · 有预览图 '+rows.filter(r=>r.img).length+' 条 · 点卡片 = 启用 / 取消</span></h2>'
+   +'<div class="hz-bar">'
+   +'<input type="search" id="hzQ" placeholder="搜索名称或 ID…">'
+   +'<select id="hzCat"><option value="">全部分类</option>'+catOpts+'</select>'
+   +'<select id="hzVip"><option value="">全部</option>'
+   +'<option value="vip"'+(HZ.vip==='vip'?' selected':'')+'>仅 VIP（'+rows.filter(r=>r.vip).length+'）</option>'
+   +'<option value="free"'+(HZ.vip==='free'?' selected':'')+'>仅免费（'+rows.filter(r=>!r.vip).length+'）</option></select>'
+   +'<label class="hz-chk'+(HZ.onlyImg?' on':'')+'" id="hzOnlyImgLbl">'
+   +'<input type="checkbox" id="hzOnlyImg"'+(HZ.onlyImg?' checked':'')+'>只看有预览图（'+rows.filter(r=>r.img).length+'）</label>'
+   +'<label class="hz-chk'+(HZ.onlyFav?' on':'')+'" id="hzOnlyFavLbl">'
+   +'<input type="checkbox" id="hzOnlyFav"'+(HZ.onlyFav?' checked':'')+'>只看已启用</label>'
+   +'<span id="hzCount" style="font-size:12.5px;color:var(--muted);margin-left:auto"></span></div>'
+   +'<div class="hz-grid" id="hzGrid"></div>'
+   +'<button class="hz-more" id="hzMore">显示更多</button></section>';
+
+  hzRenderFav(); hzRenderFonts(); hzRenderGrid(); updateHzSaveBar();
+
+  $('#hzQ').addEventListener('input',e=>{ HZ.q=e.target.value.trim(); HZ.limit=HZ_PAGE; hzRenderGrid(); });
+  $('#hzCat').addEventListener('change',e=>{ HZ.cat=e.target.value; HZ.limit=HZ_PAGE; hzRenderGrid(); });
+  $('#hzVip').addEventListener('change',e=>{ HZ.vip=e.target.value; HZ.limit=HZ_PAGE; hzRenderGrid(); });
+  $('#hzOnlyImg').addEventListener('change',e=>{
+    HZ.onlyImg=e.target.checked; HZ.limit=HZ_PAGE;
+    $('#hzOnlyImgLbl').classList.toggle('on',e.target.checked);
+    hzRenderGrid();
+  });
+  $('#hzOnlyFav').addEventListener('change',e=>{
+    HZ.onlyFav=e.target.checked; HZ.limit=HZ_PAGE;
+    $('#hzOnlyFavLbl').classList.toggle('on',e.target.checked);
+    hzRenderGrid();
+  });
+  $('#hzMore').addEventListener('click',()=>{ HZ.limit+=HZ_PAGE; hzRenderGrid(); });
+}
+
+function hzToggle(id){
+  const on=!HZ.fav.has(id);
+  if(on) HZ.fav.add(id); else HZ.fav.delete(id);
+  if(HZ.onlyFav){ hzRenderGrid(); }
+  else{
+    document.querySelectorAll('#hzGrid .hz-card[data-id="'+id+'"]').forEach(c=>{
+      c.classList.toggle('on',on);
+      const sw=c.querySelector('.hz-sw'); if(sw) sw.textContent=on?'✓':'';
+    });
+  }
+  hzRenderFav(); updateHzSaveBar();
+}
+
+function hzToggleFont(name){
+  if(HZ.fvFonts.has(name)) HZ.fvFonts.delete(name); else HZ.fvFonts.add(name);
+  hzRenderFonts(); updateHzSaveBar();
+}
+
+function hzDiffCount(){
+  let n=0;
+  HZ.fav.forEach(i=>{ if(!HZ.origFav.has(i)) n++; });
+  HZ.origFav.forEach(i=>{ if(!HZ.fav.has(i)) n++; });
+  HZ.fvFonts.forEach(f=>{ if(!HZ.origFonts.has(f)) n++; });
+  HZ.origFonts.forEach(f=>{ if(!HZ.fvFonts.has(f)) n++; });
+  return n;
+}
+
+function updateHzSaveBar(){
+  const box=$('#hzSave'); if(!box) return;
+  const n=hzDiffCount(), d=$('#hzDiff');
+  if(d) d.textContent=n;
+  box.classList.toggle('show',n>0);
+}
+
+function hzRevert(){
+  HZ.fav=new Set(HZ.origFav); HZ.fvFonts=new Set(HZ.origFonts);
+  hzRenderFav(); hzRenderFonts(); hzRenderGrid(); updateHzSaveBar();
+  toast('已撤销，回到上次保存的状态','info');
+}
+
+async function hzSave(){
+  if(HZ.fav.size===0){ toast('启用池不能为空——至少留 1 个花字，否则标题会没有花字效果','err'); return; }
+  const btn=$('#hzSaveBtn');
+  if(btn){ btn.disabled=true; btn.textContent='保存中…'; }
+  try{
+    const d=await jpost('/api/huazi/fav',{ids:[...HZ.fav],fonts:[...HZ.fvFonts]});
+    HZ.origFav=new Set(HZ.fav); HZ.origFonts=new Set(HZ.fvFonts);
+    updateHzSaveBar();
+    let msg='已保存：启用 '+d.count+' 个花字、'+(d.font_count!=null?d.font_count:HZ.fvFonts.size)+' 款字体';
+    if(d.backup) msg+='（已备份 '+d.backup+'）';
+    toast(msg,'ok');
+  }catch(e){ toast('保存失败：'+e.message,'err'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='💾 保存'; } }
+}
+
+/* ══════════════════ 文案库（库编辑 + 本店选用 + 使用次数） ══════════════════ */
+const CP={
+  key:null, label:'', path:'', rel:'', is_default:false, exists:true,
+  default_rel:'', default_path:'',
+  rows:[], orig:'[]',
+  filter:{exclude_types:[],only:[],exclude:[]}, filterDefault:true, effective:0,
+  types:[], total:0, used_total:0, unused_total:0, stale:[], stale_total:0,
+  tab:'lib', q:'', tf:'', limit:80, armed:false, staleOpen:false,
+};
+
+function cpJson(){ return JSON.stringify(CP.rows.map(r=>[r.type,r.text])); }
+function cpDirtyCnt(){
+  let n=0;
+  const a=CP.rows.map(r=>r.type+'\u0001'+r.text);
+  const b=JSON.parse(CP.orig).map(x=>x[0]+'\u0001'+x[1]);
+  a.forEach(x=>{ if(b.indexOf(x)<0) n++; });
+  b.forEach(x=>{ if(a.indexOf(x)<0) n++; });
+  return n;
+}
+function cpIsDefaultFilter(){
+  const f=CP.filter;
+  return !((f.exclude_types||[]).length || (f.only||[]).length || (f.exclude||[]).length);
+}
+function cpRecalc(){
+  const ex=new Set(CP.filter.exclude_types||[]);
+  const only=new Set(CP.filter.only||[]);
+  const exl=new Set(CP.filter.exclude||[]);
+  const seen=new Set(); let n=0;
+  CP.rows.forEach(r=>{
+    const t=(r.text||'').trim();
+    if(!t || seen.has(t)) return;
+    if(only.size && !only.has(t)) return;
+    if(ex.has(r.type)) return;
+    if(exl.has(t)) return;
+    seen.add(t); n++;
+  });
+  CP.effective=n;
+  CP.filterDefault=cpIsDefaultFilter();
+}
+
+/* ---------- 进入 / 载入 ---------- */
+async function showCopy(){
+  const key=STATE.key || STATE.lastKey || (((STATE.stores&&STATE.stores.stores)||[])[0]||{}).key;
+  if(!key){ toast('先在左侧选一个店面，再编辑它的文案库','info'); return; }
+  STATE.key=key;
+  const wantPick=(location.hash==='#copy-pick');   // ⚠ 必须在 replaceState 之前读
+  try{ history.replaceState(null,'','#copy'); }catch(e){}
+  document.querySelectorAll('.store').forEach(n=>n.classList.toggle('active',n.dataset.k===key));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $('#navCopy').classList.add('active');
+  $('#btnDelStore').style.display='none';
+  const sb=$('#hzSave'); if(sb) sb.classList.remove('show');
+  const bsb=$('#bgmSave'); if(bsb) bsb.classList.remove('show');
+  bgmStopPlay();
+  const meta=((STATE.stores&&STATE.stores.stores)||[]).find(s=>s.key===key)||{};
+  CP.key=key; CP.label=meta.label||key;
+  CP.tab=wantPick?'pick':'lib';
+  CP.q=''; CP.tf=''; CP.limit=80; CP.armed=false; CP.staleOpen=false;
+  $('#pageTitle').textContent='文案库 · '+CP.label;
+  $('#content').innerHTML='<div class="empty">正在加载文案库…</div>';
+  await cpLoad();
+}
+
+async function cpLoad(){
+  try{
+    cpApply(await jget('/api/copy?key='+encodeURIComponent(CP.key)));
+    renderCopy();
+  }catch(e){
+    $('#content').innerHTML='<div class="empty">加载失败：'+esc(e.message)+'</div>';
+  }
+}
+
+function cpApply(d){
+  CP.path=d.path; CP.rel=d.rel; CP.is_default=d.is_default; CP.exists=d.exists;
+  CP.default_rel=d.default_rel; CP.default_path=d.default_path;
+  CP.rows=(d.rows||[]).map(r=>({type:r.type,text:r.text,count:r.count,count_store:r.count_store}));
+  CP._snapshot=JSON.parse(JSON.stringify(CP.rows));
+  CP.orig=cpJson();
+  CP.filter=d.filter||{exclude_types:[],only:[],exclude:[]};
+  CP.filterDefault=!!d.filter_is_default;
+  CP.effective=d.effective||0;
+  CP.types=d.types||[]; CP.total=d.total||0;
+  CP.used_total=d.used_total||0; CP.unused_total=d.unused_total||0;
+  CP.stale=d.stale||[]; CP.stale_total=d.stale_total||0;
+  CP.armed=false;
+}
+
+/* ---------- 主渲染 ---------- */
+function renderCopy(){
+  const tabs='<div class="cp-tabs">'
+    +'<div class="cp-tab'+(CP.tab==='lib'?' on':'')+'" onclick="cpTab(\'lib\')">📚 编辑文案库</div>'
+    +'<div class="cp-tab'+(CP.tab==='pick'?' on':'')+'" onclick="cpTab(\'pick\')">🎯 「'+esc(CP.label)+'」选用哪些</div>'
+    +'</div>';
+  if(CP.tab==='lib'){ $('#content').innerHTML=tabs+cpLibHtml(); cpLibBind(); cpRenderRows(); }
+  else{ $('#content').innerHTML=tabs+cpPickHtml(); cpPickBind(); }
+  updateCpSaveBar();
+  cpSyncEff();
+}
+
+function cpTab(t){
+  if(t===CP.tab) return;
+  if(CP.tab==='lib' && cpDirtyCnt()>0){ toast('文案还有未保存的改动——请先「保存」或「撤销」再切走','info'); return; }
+  CP.tab=t; CP.q=''; CP.tf=''; CP.limit=80; CP.staleOpen=false;
+  renderCopy();
+}
+
+/* ---------- Tab1：编辑文案库 ---------- */
+function cpLibHtml(){
+  const badge = !CP.exists ? '<span class="cp-badge bad">文件不存在</span>'
+    : (CP.is_default ? '<span class="cp-badge def">共享默认库</span>'
+                     : '<span class="cp-badge own">本店专用</span>');
+  const note = !CP.exists
+    ? '<div class="cp-note">文案库文件不存在。请「📁 换库文件」重新指定，或「↺ 恢复默认库」。</div>'
+    : (CP.is_default
+      ? '<div class="cp-note">这是<b>共享默认库</b>——可能有多个店面都在用它。保存会同时改到这些店面；'
+        +'想让本店独立，请用「另存为本店专用」。</div>'
+      : '<div class="cp-note info">这是<b>本店专用库</b>，只有「'+esc(CP.label)+'」在用。</div>');
+
+  const staleBox = CP.staleOpen
+    ? '<div class="cp-rows" style="max-height:210px;margin-bottom:12px">'
+      + CP.stale.map(t=>'<div class="cp-tr" style="grid-template-columns:1fr 60px">'
+          +'<span style="font-size:12.5px;color:var(--muted)">'+esc(t)+'</span>'
+          +'<span class="cp-n">已不在库</span></div>').join('')
+      + '</div>'
+    : '';
+
+  const chips = ['<span class="cp-chip'+(CP.tf===''?' on':'')+'" data-t="">全部<span class="n">'+CP.total+'</span></span>']
+    .concat(CP.types.map(t=>'<span class="cp-chip'+(CP.tf===t.name?' on':'')+'" data-t="'+esc(t.name)+'" '
+      +'title="用过 '+t.uses+' 次 / '+t.used+' 条有记录">'+esc(t.name)
+      +'<span class="n">'+t.count+'</span></span>')).join('');
+
+  return '<section>'
+   +'<h2>'+esc(CP.label)+' 的文案库 <span class="hint">每行一条 · 出片时按「全批用得最少」挑，跨批次不重复</span></h2>'
+   +'<div class="cp-head"><span class="cp-path">'+esc(CP.rel||CP.path)+'</span>'+badge
+   +'<button class="btn ghost sm" onclick="cpPickFile()">📁 换库文件</button>'
+   +'<button class="btn ghost sm" onclick="cpReload()">↻ 重新载入</button>'
+   +(CP.is_default?'':'<button class="btn ghost sm" onclick="cpRestoreDefault()">↺ 恢复默认库</button>')
+   +'</div>'
+   +note
+   +'<div class="cp-stat">'
+   +'<span>共 <b>'+CP.total+'</b> 条</span>'
+   +'<span>用过 <b>'+CP.used_total+'</b> 条</span>'
+   +'<span>没用过 <b>'+CP.unused_total+'</b> 条</span>'
+   +(CP.stale_total?'<span class="lnk" onclick="cpStaleToggle()">历史用过但已不在库 <b>'+CP.stale_total+'</b> 条 ▾</span>':'')
+   +'<span style="margin-left:auto">本店生效 <b>'+CP.effective+'</b> 条</span>'
+   +'</div>'
+   +staleBox
+   +'<div class="cp-chips" id="cpTypeChips">'+chips+'</div>'
+   +'<div class="cp-bar">'
+   +'<input type="search" id="cpQ" placeholder="搜索文案或类型…" value="'+esc(CP.q)+'">'
+   +'<button class="btn ghost sm" onclick="cpAdd()">＋ 新增文案</button>'
+   +'<button class="btn ghost sm" onclick="cpExport()">📤 导出</button>'
+   +'<button class="btn ghost sm" onclick="openCpImport()">📥 导入</button>'
+   +'<span class="grow"></span>'
+   +'<span class="cp-saveas"><input id="cpAsName" placeholder="新库文件名…(.txt)">'
+   +'<button class="btn ghost sm" onclick="cpSaveAs()">另存为本店专用</button></span>'
+   +'</div>'
+   +'<div class="cp-rows"><div class="cp-th"><span>类型</span><span>文案（可直接改，格式：第一段|第二段）</span>'
+   +'<span class="r" title="全部店面累计">全局</span><span class="r" title="'+esc(CP.label)+' 用过几次">本店</span><span></span></div>'
+   +'<div id="cpRows"></div></div>'
+   +'<button class="cp-more" id="cpMore" style="display:none">显示更多</button>'
+   +'<datalist id="cpTypeList">'+CP.types.map(t=>'<option value="'+esc(t.name)+'">').join('')+'</datalist>'
+   +'<div class="hint">提示：类型框可直接输入新类型名（会出现在下拉里）。空文案行保存时自动忽略，完全相同的行自动去重。</div>'
+   +'</section>';
+}
+
+function cpRowHtml(r,i){
+  const hot=r.count>0?' hot':'';
+  return '<div class="cp-tr">'
+    +'<input class="cp-sel" list="cpTypeList" value="'+esc(r.type)+'" '
+    +'onchange="cpType('+i+',this.value)" title="类型（可直接输入新类型）">'
+    +'<input class="cp-in" value="'+esc(r.text)+'" oninput="cpText('+i+',this.value)" spellcheck="false">'
+    +'<span class="cp-n'+hot+'" title="全部店面累计用过 '+r.count+' 次">'+r.count+'</span>'
+    +'<span class="cp-n2'+(r.count_store>0?' hot':'')+'" title="本店用过 '+r.count_store+' 次">'+r.count_store+'</span>'
+    +'<button class="cp-x" onclick="cpDel('+i+')" title="删除这条">✕</button>'
+    +'</div>';
+}
+
+function cpPass(r){
+  if(CP.tf && r.type!==CP.tf) return false;
+  if(CP.q){
+    const q=CP.q.toLowerCase();
+    if(!(r.text.toLowerCase().indexOf(q)>=0 || r.type.toLowerCase().indexOf(q)>=0)) return false;
+  }
+  return true;
+}
+
+function cpRenderRows(){
+  const box=$('#cpRows'); if(!box) return;
+  const vis=[];
+  CP.rows.forEach((r,i)=>{ if(cpPass(r)) vis.push({r:r,i:i}); });
+  box.innerHTML = vis.slice(0,CP.limit).map(o=>cpRowHtml(o.r,o.i)).join('')
+    || '<div class="empty">没有匹配的文案</div>';
+  const m=$('#cpMore');
+  if(m){ m.style.display=vis.length>CP.limit?'block':'none';
+    m.textContent='显示更多（已显示 '+Math.min(CP.limit,vis.length)+' / '+vis.length+'）'; }
+  const c=$('#cpCount'); if(c) c.textContent=vis.length;
+}
+
+function cpLibBind(){
+  const q=$('#cpQ');
+  if(q) q.addEventListener('input',e=>{ CP.q=e.target.value.trim(); CP.limit=80; cpRenderRows(); });
+  const tc=$('#cpTypeChips');
+  if(tc) tc.addEventListener('click',e=>{
+    const c=e.target.closest('.cp-chip'); if(!c) return;
+    CP.tf=c.dataset.t||''; CP.limit=80;
+    tc.querySelectorAll('.cp-chip').forEach(x=>x.classList.toggle('on',x===c));
+    cpRenderRows();
+  });
+  const m=$('#cpMore');
+  if(m) m.addEventListener('click',()=>{ CP.limit+=80; cpRenderRows(); });
+}
+
+function cpStaleToggle(){ CP.staleOpen=!CP.staleOpen; renderCopy(); }
+
+function cpType(i,v){
+  if(!CP.rows[i]) return;
+  CP.rows[i].type=(v||'').trim()||'未分类';
+  updateCpSaveBar();
+}
+function cpText(i,v){
+  if(!CP.rows[i]) return;
+  CP.rows[i].text=v;
+  // 只更新「是否为空」的样式，不重绘（否则输入框会失焦）
+  updateCpSaveBar();
+}
+function cpDel(i){
+  if(!CP.rows[i]) return;
+  CP.rows.splice(i,1);
+  cpRenderRows(); updateCpSaveBar();
+  toast('已删除这条（点「撤销」可恢复）','info');
+}
+function cpAdd(){
+  const t=CP.tf || (CP.types[0]&&CP.types[0].name) || '未分类';
+  CP.q=''; CP.tf='';
+  const q=$('#cpQ'); if(q) q.value='';
+  CP.rows.unshift({type:t,text:'',count:0,count_store:0});
+  cpRenderRows();
+  const inp=$('#cpRows .cp-in'); if(inp){ inp.focus(); }
+  updateCpSaveBar();
+  toast('已在最上面新增一条，填好文案后记得保存','info');
+}
+
+/* ---------- Tab2：本店选用 ---------- */
+function cpPickHtml(){
+  const ex=new Set(CP.filter.exclude_types||[]);
+  const only=new Set(CP.filter.only||[]);
+  const off=CP.filterDefault?' off':'';
+  const chips=CP.types.map(t=>'<span class="cp-chip'+(ex.has(t.name)?' ex':'')+'" data-t="'+esc(t.name)+'">'
+    +esc(t.name)+'<span class="n">'+t.count+'</span></span>').join('');
+  const list=CP.rows.map(r=>{
+    const on=only.has(r.text);
+    return '<div class="cp-pr'+(on?' on':'')+'" data-x="'+esc(r.text)+'">'
+      +'<span>'+(on?'☑':'☐')+'</span>'
+      +'<span class="tg">'+esc(r.type)+'</span>'
+      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.text)+'</span>'
+      +'<span class="n">'+r.count+'</span></div>';
+  }).join('');
+
+  return '<section>'
+   +'<h2>「'+esc(CP.label)+'」用文案库里的哪些 <span class="hint">不设限制 = 用全部（默认）</span></h2>'
+   +'<div class="cp-mode">'
+   +'<label class="cp-radio'+(CP.filterDefault?' on':'')+'" onclick="cpModeAll()">'
+   +'<input type="radio" name="cpmode"'+(CP.filterDefault?' checked':'')+'> 使用全部（默认）</label>'
+   +'<label class="cp-radio'+(!CP.filterDefault?' on':'')+'" onclick="cpModeCustom()">'
+   +'<input type="radio" name="cpmode"'+(!CP.filterDefault?' checked':'')+'> 自定义</label>'
+   +'<span class="cp-eff">本店生效 <b id="cpEff">'+CP.effective+'</b> / '+CP.total+' 条</span>'
+   +'</div>'
+   +'<div class="cp-block'+off+'">'
+   +'<div class="cp-lab">① 按类型排除 <span class="hint">点一下 = 这类不要（变红）</span></div>'
+   +'<div class="cp-chips" id="cpExChips">'+chips+'</div></div>'
+   +'<div class="cp-block'+off+'">'
+   +'<div class="cp-lab">② 单条挑选 <span class="hint">勾中 = 只用勾中的；一条不勾 = 不启用这条规则</span>'
+   +'<button class="btn ghost sm" onclick="cpOnlyAll(1)">全选</button>'
+   +'<button class="btn ghost sm" onclick="cpOnlyAll(0)">清空</button>'
+   +'<span class="hint">已勾 <b id="cpOnlyN">'+only.size+'</b> 条</span></div>'
+   +'<div class="cp-pick" id="cpPickList">'+list+'</div></div>'
+   +'<div class="cp-bar">'
+   +'<button class="btn primary" onclick="cpSaveFilter()">💾 保存本店选用</button>'
+   +'<button class="btn ghost" onclick="cpResetFilter()">↺ 恢复「使用全部」</button>'
+   +'<span class="hint" style="margin-left:auto">出片时从「本店生效」的文案里按用得最少来挑</span>'
+   +'</div></section>';
+}
+
+function cpPickBind(){
+  const ex=$('#cpExChips');
+  if(ex) ex.addEventListener('click',e=>{
+    const c=e.target.closest('.cp-chip'); if(!c) return;
+    cpToggleEx(c.dataset.t||'');
+  });
+  const pl=$('#cpPickList');
+  if(pl) pl.addEventListener('click',e=>{
+    const r=e.target.closest('.cp-pr'); if(!r) return;
+    cpTogglePick(r.dataset.x||'');
+  });
+}
+
+function cpSyncEff(){
+  const e=$('#cpEff'); if(e) e.textContent=CP.effective;
+  const n=$('#cpOnlyN'); if(n) n.textContent=(CP.filter.only||[]).length;
+}
+function cpModeAll(){
+  CP.filter={exclude_types:[],only:[],exclude:[]};
+  renderCopy();
+  toast('已选「使用全部」——记得点「保存本店选用」','info');
+}
+function cpModeCustom(){
+  if(CP.filterDefault){ CP.filter={exclude_types:[],only:[],exclude:[]}; }
+  renderCopy();
+}
+function cpToggleEx(name){
+  const s=new Set(CP.filter.exclude_types||[]);
+  if(s.has(name)) s.delete(name); else s.add(name);
+  CP.filter.exclude_types=[...s];
+  cpRecalc();
+  const el=document.querySelector('#cpExChips .cp-chip[data-t="'+CSS.escape(name)+'"]');
+  if(el) el.classList.toggle('ex');
+  cpSyncEff();
+  document.querySelectorAll('.cp-radio').forEach((r,i)=>r.classList.toggle('on', CP.filterDefault?i===0:i===1));
+}
+function cpTogglePick(text){
+  const s=new Set(CP.filter.only||[]);
+  if(s.has(text)) s.delete(text); else s.add(text);
+  CP.filter.only=[...s];
+  cpRecalc();
+  document.querySelectorAll('#cpPickList .cp-pr').forEach(el=>{
+    if(el.dataset.x===text){
+      const on=s.has(text);
+      el.classList.toggle('on',on);
+      const t=el.firstElementChild; if(t) t.textContent=on?'☑':'☐';
+    }
+  });
+  cpSyncEff();
+  document.querySelectorAll('.cp-radio').forEach((r,i)=>r.classList.toggle('on', CP.filterDefault?i===0:i===1));
+}
+function cpOnlyAll(on){
+  CP.filter.only = on ? [...new Set(CP.rows.map(r=>r.text))] : [];
+  cpRecalc(); renderCopy();
+}
+
+async function cpSaveFilter(){
+  try{
+    const d=await jpost('/api/stores/'+CP.key+'/copy_filter',
+      {exclude_types:CP.filter.exclude_types, only:CP.filter.only, exclude:CP.filter.exclude});
+    cpApply(d); renderCopy();
+    toast('已保存本店选用：生效 '+d.effective+' 条','ok');
+  }catch(e){ toast('保存失败：'+e.message,'err'); }
+}
+async function cpResetFilter(){
+  try{
+    const d=await jpost('/api/stores/'+CP.key+'/copy_filter',{reset:true});
+    cpApply(d); renderCopy();
+    toast('已恢复「使用全部」（'+d.effective+' 条）','ok');
+  }catch(e){ toast('恢复失败：'+e.message,'err'); }
+}
+
+/* ---------- 保存 / 撤销 ---------- */
+function resetCpBtn(){
+  const b=$('#cpSaveBtn'); if(b){ b.disabled=false; b.textContent='💾 保存'; }
+  const t=$('#cpDiffText');
+  if(t) t.innerHTML='文案已改动 <span class="d" id="cpDiff">'+cpDirtyCnt()+'</span> 条，尚未保存';
+}
+function updateCpSaveBar(){
+  const box=$('#cpSave'); if(!box) return;
+  const n=cpDirtyCnt(), d=$('#cpDiff');
+  if(d) d.textContent=n;
+  box.classList.toggle('show', n>0 && CP.tab==='lib');
+  if(n===0 && CP.armed){ CP.armed=false; resetCpBtn(); }
+}
+function cpRevert(){
+  CP.armed=false;
+  CP.rows=JSON.parse(JSON.stringify(CP._snapshot||[]));
+  resetCpBtn(); renderCopy();
+  toast('已撤销，回到上次保存的状态','info');
+}
+function cpGuard(msg){
+  if(cpDirtyCnt()>0){ toast(msg||'有未保存的改动——请先「保存」或「撤销」','info'); return false; }
+  return true;
+}
+async function cpSave(){
+  const n=cpDirtyCnt();
+  if(n===0){ toast('没有改动','info'); return; }
+  const rows=CP.rows.map(r=>({type:r.type,text:(r.text||'').trim()})).filter(r=>r.text);
+  if(!rows.length){ toast('文案库不能为空——至少留 1 条，否则出片没有标题','err'); return; }
+  if(CP.is_default && !CP.armed){
+    CP.armed=true;
+    const b=$('#cpSaveBtn'); if(b) b.textContent='⚠ 确认改共享默认库';
+    const t=$('#cpDiffText');
+    if(t) t.innerHTML='<span style="color:#ffd666">共享默认库被多个店面共用，确认要改？</span>';
+    toast('这是共享默认库：再点一次「确认改共享默认库」才会写入','info');
+    setTimeout(()=>{ if(CP.armed){ CP.armed=false; resetCpBtn(); updateCpSaveBar(); } },6000);
+    return;
+  }
+  CP.armed=false;
+  const btn=$('#cpSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='保存中…'; }
+  try{
+    const d=await jpost('/api/copy',{entries:rows, key:CP.key});
+    cpApply(d); renderCopy();
+    let msg='已保存 '+d.count+' 条文案';
+    if(d.is_default) msg+=' · 写入共享默认库';
+    if(d.backup) msg+='（旧文件已备份）';
+    toast(msg,'ok');
+  }catch(e){ toast('保存失败：'+e.message,'err'); }
+  finally{ const b=$('#cpSaveBtn'); if(b) b.disabled=false; resetCpBtn(); }
+}
+
+/* ---------- 换库文件 ---------- */
+async function cpReload(){
+  if(!cpGuard('有未保存的改动——请先「保存」或「撤销」，再重新载入')) return;
+  await cpLoad(); toast('已重新载入','info');
+}
+async function cpPickFile(){
+  if(!cpGuard('有未保存的改动——请先「保存」或「撤销」，再换库文件')) return;
+  try{
+    const r=await jget('/api/pick_file?prompt='+encodeURIComponent('选择文案库文件（.txt）'));
+    if(r.cancelled) return;
+    cpApply(await jpost('/api/stores/'+CP.key+'/copy',{path:r.path}));
+    renderCopy();
+    toast('已换到：'+basename(CP.path)+'（'+CP.total+' 条）','ok');
+  }catch(e){ toast('换库失败：'+e.message,'err'); }
+}
+async function cpSaveAs(){
+  const el=$('#cpAsName'); const name=(el&&el.value.trim())||'';
+  if(!name){ toast('先给新库起个文件名，如「'+CP.label+'文案.txt」','info'); if(el) el.focus(); return; }
+  if(!cpGuard('有未保存的改动——请先「保存」或「撤销」，再另存')) return;
+  try{
+    cpApply(await jpost('/api/stores/'+CP.key+'/copy',{save_as:name}));
+    renderCopy();
+    toast('已另存为 '+basename(CP.path)+'（'+CP.total+' 条），本店已切过去','ok');
+  }catch(e){ toast('另存失败：'+e.message,'err'); }
+}
+async function cpRestoreDefault(){
+  if(!cpGuard('有未保存的改动——请先「保存」或「撤销」，再恢复默认库')) return;
+  try{
+    cpApply(await jpost('/api/stores/'+CP.key+'/copy',{reset:true}));
+    renderCopy();
+    toast('已恢复共享默认库（'+CP.total+' 条）','ok');
+  }catch(e){ toast('恢复失败：'+e.message,'err'); }
+}
+
+/* ---------- 导入 / 导出 ---------- */
+function cpExport(){
+  const p=new URLSearchParams({key:CP.key, with_type:'1'});
+  if(CP.tf) p.set('types',CP.tf);
+  const a=document.createElement('a');
+  a.href='/api/copy/export?'+p.toString();
+  a.download='';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('已导出'+(CP.tf?'（只含「'+CP.tf+'」）':'')+'，看浏览器下载','ok');
+}
+function openCpImport(){
+  const t=$('#cpImpText'); if(t) t.value='';
+  const f=$('#cpImpFile'); if(f) f.value='';
+  $('#cpImpMask').classList.add('show');
+}
+function closeCpImport(){ $('#cpImpMask').classList.remove('show'); }
+async function cpDoImport(){
+  const el=$('#cpImpText');
+  let text=(el&&el.value)||'';
+  const f=($('#cpImpFile')||{}).files;
+  if(f && f[0]){
+    text += (text?'\n':'') + await f[0].text();
+  }
+  if(!text.trim()){ toast('先选个 txt 文件，或把文案粘进来','info'); return; }
+  const mode=($('#cpImpMode')||{}).value||'merge';
+  try{
+    const d=await jpost('/api/copy/import',{text:text, mode:mode, key:CP.key});
+    closeCpImport(); cpApply(d); renderCopy();
+    toast('导入完成：解析 '+d.imported+' 条，新增 '+d.added+' 条，现共 '+d.count+' 条','ok');
+  }catch(e){ toast('导入失败：'+e.message,'err'); }
+}
+</script>
+</body>
+</html>

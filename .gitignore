@@ -1,0 +1,51 @@
+# ── 虚拟环境（用 scripts/setup.sh 重建）────────────────────
+.venv/
+venv/
+
+# ── 引擎（185MB：sticker.json 61MB + ffprobe 78MB）──────────
+# 不进版本库，用 scripts/fetch_engine.sh 获取
+engine/
+
+# ── Python ─────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ── 运行时数据（每台机器各自累积，不该版本化）─────────────────
+produced_history*.jsonl
+
+# ── 备份 / 临时文件 ─────────────────────────────────────────
+*.bak
+*.bak.*
+*.bak-*
+*.tmp
+*.orig
+
+# ── 生成产物（可随时用脚本重新生成）──────────────────────────
+assets/huazi_library/花字库.html
+
+# ── 日志 ───────────────────────────────────────────────────
+*.log
+logs/
+
+# ── macOS ──────────────────────────────────────────────────
+.DS_Store
+._*
+
+# 本机 AI 配置（含 API Key，绝不可提交）
+projects/_ai.conf
+
+# ── 业务数据 / 品牌资产（仅本机保留，绝不上传）──────────────
+assets/
+projects/*/spec.json
+projects/_custom_stores.json
+docs/*.png
+docs/*验证报告.html
+docs/文案库*.txt
+docs/剪映规则验证报告.html
+docs/跃过31-60_验证报告.html
+docs/文案库v2_编辑页.txt
+docs/*.html
+docs/*.txt
